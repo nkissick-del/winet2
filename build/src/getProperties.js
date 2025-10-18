@@ -26,20 +26,20 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getProperties = void 0;
 const http = __importStar(require("http"));
 const https = __importStar(require("https"));
-const { SSLConfig } = require("./sslConfig");
+const sslConfig_1 = require("./sslConfig");
 function getProperties(logger, host, lang, ssl) {
     return new Promise((resolve, reject) => {
         const url = `${ssl ? 'https' : 'http'}://${host}/i18n/${lang}.properties`;
         const request = () => {
-            const sslConfig = new SSLConfig(logger);
+            const sslConfig = new sslConfig_1.SSLConfig(logger);
             const options = ssl ? sslConfig.getSSLOptions(host) : {};
             (ssl ? https : http)
                 .get(url, options, res => {
                 let data = '';
-                res.on('data', chunk => {
+                res.on('data', (chunk) => {
                     data += chunk;
                 });
-                res.on('error', err => {
+                res.on('error', (err) => {
                     if (!ssl) {
                         // Retry with ssl set to true
                         getProperties(logger, host, lang, true)
@@ -54,7 +54,6 @@ function getProperties(logger, host, lang, ssl) {
                     // Optimized properties parsing with reduced array operations
                     const properties = {};
                     const lines = data.split('\n');
-                    
                     for (let i = 0; i < lines.length; i++) {
                         const line = lines[i];
                         const equalPos = line.indexOf('=');
@@ -69,7 +68,7 @@ function getProperties(logger, host, lang, ssl) {
                     resolve({ properties, forceSsl: ssl });
                 });
             })
-                .on('error', err => {
+                .on('error', (err) => {
                 if (!ssl) {
                     logger.warn('Newer Winet versions require SSL to be enabled. Retrying');
                     // Retry with ssl set to true

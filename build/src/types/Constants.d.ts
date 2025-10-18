@@ -1,11 +1,7 @@
-declare const NumericUnits: string[];
-declare enum QueryStages {
+export declare const NumericUnits: Set<string>;
+export declare enum QueryStages {
     REAL = 0,
     DIRECT = 1,
     REAL_BATTERY = 2
 }
-type DeviceTypeStagesType = {
-    [key: number]: QueryStages[];
-};
-declare const DeviceTypeStages: DeviceTypeStagesType;
-export { NumericUnits, DeviceTypeStages, QueryStages };
+export declare const DeviceTypeStages: Map<number, QueryStages[]>;

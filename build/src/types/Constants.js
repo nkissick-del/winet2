@@ -1,11 +1,20 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.QueryStages = exports.DeviceTypeStages = exports.NumericUnits = void 0;
+exports.DeviceTypeStages = exports.QueryStages = exports.NumericUnits = void 0;
 // Optimized: Use Set for O(1) lookups instead of Array.includes() O(n)
-const NumericUnits = new Set([
-    'A', '%', 'kW', 'kWh', '℃', 'V', 'kvar', 'var', 'Hz', 'kVA', 'kΩ'
+exports.NumericUnits = new Set([
+    'A',
+    '%',
+    'kW',
+    'kWh',
+    '℃',
+    'V',
+    'kvar',
+    'var',
+    'Hz',
+    'kVA',
+    'kΩ',
 ]);
-exports.NumericUnits = NumericUnits;
 var QueryStages;
 (function (QueryStages) {
     QueryStages[QueryStages["REAL"] = 0] = "REAL";
@@ -13,7 +22,7 @@ var QueryStages;
     QueryStages[QueryStages["REAL_BATTERY"] = 2] = "REAL_BATTERY";
 })(QueryStages || (exports.QueryStages = QueryStages = {}));
 // Optimized: Use Map for better performance and cleaner initialization
-const DeviceTypeStages = new Map([
+exports.DeviceTypeStages = new Map([
     [0, [QueryStages.REAL, QueryStages.DIRECT]],
     [8, [QueryStages.REAL]],
     [11, [QueryStages.REAL]],
@@ -33,7 +42,6 @@ const DeviceTypeStages = new Map([
     [44, [QueryStages.REAL]],
     [46, [QueryStages.REAL]],
     [47, [QueryStages.REAL]],
-    [48, [QueryStages.REAL]]
+    [48, [QueryStages.REAL]],
 ]);
-exports.DeviceTypeStages = DeviceTypeStages;
 //# sourceMappingURL=Constants.js.map

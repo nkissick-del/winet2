@@ -1,4 +1,14 @@
 {
+  "name": "winet2",
+  "version": "2.0.0",
+  "description": "Bridge Sungrow Winet/Winet-S/Winet-S2 gateways to Home Assistant using MQTT Discovery",
+  "main": "build/src/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nkissick-del/winet2.git"
+  },
+  "author": "Nathan Kissick",
+  "license": "MIT",
   "devDependencies": {
     "@types/node": "20.11.5",
     "@types/ws": "^8.5.10",

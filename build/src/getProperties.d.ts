@@ -1,8 +1,7 @@
-import Winston from 'winston';
 import { Properties } from './types/Properties';
-type ReturnProperties = {
+import * as winston from 'winston';
+export interface PropertiesResult {
     properties: Properties;
     forceSsl: boolean;
-};
-export declare function getProperties(logger: Winston.Logger, host: string, lang: string, ssl: boolean): Promise<ReturnProperties>;
-export {};
+}
+export declare function getProperties(logger: winston.Logger, host: string, lang: string, ssl: boolean): Promise<PropertiesResult>;

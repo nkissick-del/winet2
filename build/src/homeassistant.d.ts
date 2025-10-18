@@ -1,13 +1,17 @@
 import { z } from 'zod';
 import { DeviceSchema } from './types/MessageTypes';
-import { DeviceStatus } from './types/DeviceStatus';
-import Winston from 'winston';
+import { DeviceStatusMap } from './types/DeviceStatus';
+import * as winston from 'winston';
 export declare class MqttPublisher {
     private logger;
-    private client;
-    private connected;
-    constructor(logger: Winston.Logger, url: string);
-    publishData(deviceSlug: string, slug: string, unit: string, value: number | string | undefined): void;
-    registerDevice(slug: string, device: z.infer<typeof DeviceSchema>): boolean;
-    publishConfig(deviceSlug: string, deviceStatus: DeviceStatus, device: z.infer<typeof DeviceSchema>): boolean;
+    private mqttClient;
+    private haPrefix;
+    private devicePrefix;
+    private publishedDiscovery;
+    private lastStatusPublish;
+    constructor(logger: winston.Logger, mqttClient: any, haPrefix: string, devicePrefix: string);
+    publishDiscovery(devices: z.infer<typeof DeviceSchema>[], deviceStatus: DeviceStatusMap): void;
+    publishStatus(devices: z.infer<typeof DeviceSchema>[], deviceStatus: DeviceStatusMap): void;
+    clearDiscoveryCache(): void;
+    forceDiscoveryPublish(): void;
 }
