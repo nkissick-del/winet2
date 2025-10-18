@@ -7,7 +7,26 @@
     "type": "git",
     "url": "https://github.com/nkissick-del/winet2.git"
   },
+  "homepage": "https://github.com/nkissick-del/winet2",
+  "bugs": {
+    "url": "https://github.com/nkissick-del/winet2/issues"
+  },
+  "keywords": [
+    "sungrow",
+    "winet",
+    "home-assistant",
+    "mqtt",
+    "solar",
+    "inverter",
+    "typescript",
+    "websocket",
+    "energy-monitoring",
+    "iot"
+  ],
   "author": "Nathan Kissick",
+  "contributors": [
+    "nickstallman"
+  ],
   "license": "MIT",
   "devDependencies": {
     "@types/node": "20.11.5",
