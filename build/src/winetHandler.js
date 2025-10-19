@@ -8,6 +8,7 @@ const sslConfig_1 = require("./sslConfig");
 const ws_1 = __importDefault(require("ws"));
 const slugify_1 = __importDefault(require("slugify"));
 const Constants_1 = require("./types/Constants");
+const modbusReader_1 = require("./modbusReader");
 class winetHandler {
     winetUser;
     winetPass;
@@ -33,7 +34,9 @@ class winetHandler {
     properties;
     callbackUpdatedStatus;
     ws;
-    constructor(logger, host, lang, frequency, winetUser, winetPass, analytics) {
+    modbusReader;
+    modbusEnabled = false;
+    constructor(logger, host, lang, frequency, winetUser, winetPass, analytics, modbusIp) {
         this.winetUser = winetUser || 'admin';
         this.winetPass = winetPass || 'pw8888';
         this.logger = logger;
@@ -42,6 +45,12 @@ class winetHandler {
         this.lang = lang;
         this.frequency = frequency;
         this.analytics = analytics;
+        // Initialize Modbus reader if IP is provided
+        if (modbusIp && modbusIp.trim().length > 0) {
+            this.logger.info(`🔌 Modbus enabled for ${modbusIp}`);
+            this.modbusReader = new modbusReader_1.ModbusReader(modbusIp);
+            this.modbusEnabled = true;
+        }
     }
     setProperties(properties) {
         this.properties = properties;
@@ -265,6 +274,13 @@ class winetHandler {
                         return;
                     }
                     const slugifyOptions = { lower: true, strict: true, replacement: '_' };
+                    // Log all data names for meter-connected inverter (A22C1208343)
+                    const device = this.devices.find(d => d.dev_id === receivedDevice);
+                    if (device?.dev_sn === 'A22C1208343') {
+                        this.logger.info(`[METER DEBUG] Received ${realtimeResult.data.list.length} datapoints for ${device.dev_sn}`);
+                        const dataNames = realtimeResult.data.list.map((d) => `${this.properties?.[d.data_name] || d.data_name} (${d.data_unit})`);
+                        this.logger.info(`[METER DEBUG] Data names: ${dataNames.join(', ')}`);
+                    }
                     for (const data of realtimeResult.data.list) {
                         const name = this.properties?.[data.data_name] || data.data_name;
                         let value;
@@ -286,6 +302,10 @@ class winetHandler {
                             unit: data.data_unit,
                             dirty: true,
                         };
+                        // Log meter-related datapoints
+                        if (device?.dev_sn === 'A22C1208343' && name.toLowerCase().includes('meter')) {
+                            this.logger.info(`[METER DEBUG] ${name} = ${value} ${data.data_unit}`);
+                        }
                         this.updateDeviceStatus(receivedDevice, dataPoint);
                     }
                     this.scanDevices();
@@ -399,7 +419,73 @@ class winetHandler {
             this.lastDeviceUpdate[combinedName] = Date.now();
         }
     }
-    scanDevices() {
+    /**
+     * Augment device status with Modbus meter data
+     * Adds meter_power, grid_import_energy, and grid_export_energy
+     */
+    async addModbusMeterData() {
+        if (!this.modbusReader) {
+            return;
+        }
+        try {
+            this.logger.info('🔄 Reading Modbus meter data...');
+            const meterData = await this.modbusReader.readMeterData();
+            this.logger.info(`📊 Modbus meter data READ: ${meterData.power}W, ` +
+                `Import: ${meterData.importEnergy.toFixed(1)}kWh, ` +
+                `Export: ${meterData.exportEnergy.toFixed(1)}kWh`);
+            // Find the first device (assuming meter is connected to first inverter)
+            // In future, could make this configurable
+            const firstDevice = this.devices[0];
+            if (!firstDevice) {
+                this.logger.warn('No devices found for Modbus meter data');
+                return;
+            }
+            const deviceId = firstDevice.dev_id.toString();
+            if (!this.deviceStatus[deviceId]) {
+                this.deviceStatus[deviceId] = {};
+            }
+            const deviceStats = this.deviceStatus[deviceId];
+            // Add meter power
+            deviceStats['meter_power'] = {
+                title: 'Meter Power',
+                name: 'meter_power',
+                value: meterData.power,
+                unit: 'W',
+                slug: 'meter_power',
+                dirty: true,
+            };
+            // Add grid import energy
+            deviceStats['grid_import_energy'] = {
+                title: 'Grid Import Energy',
+                name: 'grid_import_energy',
+                value: meterData.importEnergy,
+                unit: 'kWh',
+                slug: 'grid_import_energy',
+                dirty: true,
+            };
+            // Add grid export energy
+            deviceStats['grid_export_energy'] = {
+                title: 'Grid Export Energy',
+                name: 'grid_export_energy',
+                value: meterData.exportEnergy,
+                unit: 'kWh',
+                slug: 'grid_export_energy',
+                dirty: true,
+            };
+            // Mark these sensors as recently updated to bypass cache
+            const now = Date.now();
+            this.lastDeviceUpdate[`${deviceId}_meter_power`] = now;
+            this.lastDeviceUpdate[`${deviceId}_grid_import_energy`] = now;
+            this.lastDeviceUpdate[`${deviceId}_grid_export_energy`] = now;
+            this.logger.info(`✅ Added 3 Modbus sensors to device ${deviceId}`);
+        }
+        catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Failed to read Modbus meter data: ${errorMsg}`);
+            // Don't throw - continue with other sensors
+        }
+    }
+    async scanDevices() {
         if (this.inFlightDevice !== undefined) {
             this.analytics?.registerError('scanDevices', 'inFlightDevice');
             this.logger.info(`Skipping scanDevices, in flight device: ${this.inFlightDevice}`);
@@ -425,6 +511,10 @@ class winetHandler {
                 // Calculate total data points for logging
                 const totalDataPoints = Object.values(this.deviceStatus).reduce((count, deviceData) => count + Object.keys(deviceData).length, 0);
                 this.logger.debug(`Completed scan cycle - ${this.devices.length} devices, ${totalDataPoints} data points`);
+                // Augment with Modbus meter data if enabled
+                if (this.modbusEnabled) {
+                    await this.addModbusMeterData();
+                }
                 this.callbackUpdatedStatus?.(this.devices, this.deviceStatus);
                 return;
             }

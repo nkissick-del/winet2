@@ -77,6 +77,7 @@ let options = {
     analytics: true,
     ssl: false,
     ha_prefix: 'homeassistant/sensor',
+    modbus_ips: [],
 };
 // Optimized configuration loading with reduced redundancy
 if (fs.existsSync('/data/options.json')) {
@@ -98,6 +99,10 @@ else {
         .split(',')
         .map(x => x.trim())
         .filter(x => x.length > 0);
+    // Parse comma-separated values preserving empty entries (for optional per-inverter config)
+    const parseCommaSeparatedWithEmpties = (val) => val
+        .split(',')
+        .map(x => x.trim());
     const hostsEnv = getEnvVar('WINET_HOSTS') || getEnvVar('WINET_HOST');
     // Batch assign environment variables with optimized processing
     Object.assign(options, {
@@ -113,6 +118,7 @@ else {
         ssl: process.env.SSL === 'true',
         ha_prefix: getEnvVar('HA_PREFIX', 'homeassistant/sensor'),
         winet_names: parseCommaSeparated(getEnvVar('WINET_NAMES')),
+        modbus_ips: parseCommaSeparatedWithEmpties(getEnvVar('MODBUS_IPS')),
     });
 }
 if ((!options.winet_hosts || options.winet_hosts.length === 0) &&
@@ -174,7 +180,10 @@ hosts.forEach((hostRaw, index) => {
     // Initialize components with optimized parameters
     const mqttPublisher = new homeassistant_js_1.MqttPublisher(log, mqttClient, haPrefix, '', // Empty devicePrefix - using device serial numbers as identifiers
     inverterId);
-    const winet = new winetHandler_js_1.winetHandler(log, host, lang, frequency, options.winet_user, options.winet_pass, new analytics_js_1.Analytics(options.analytics));
+    // Get Modbus IP for this inverter if configured
+    const modbusIp = options.modbus_ips?.[index];
+    log.info(`[${inverterId}] Modbus configuration: index=${index}, IP="${modbusIp}"`);
+    const winet = new winetHandler_js_1.winetHandler(log, host, lang, frequency, options.winet_user, options.winet_pass, new analytics_js_1.Analytics(options.analytics), modbusIp);
     // Use Set for O(1) lookups instead of Array.includes() which is O(n)
     const configuredSensors = new Set();
     const configuredDevices = new Set();

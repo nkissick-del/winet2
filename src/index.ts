@@ -61,6 +61,7 @@ interface Options {
   ssl: boolean;
   ha_prefix: string;
   winet_names?: string[];
+  modbus_ips?: string[];  // Modbus TCP IPs for each inverter (optional)
 }
 
 let options: Options = {
@@ -75,6 +76,7 @@ let options: Options = {
   analytics: true,
   ssl: false,
   ha_prefix: 'homeassistant/sensor',
+  modbus_ips: [],
 };
 
 // Optimized configuration loading with reduced redundancy
@@ -101,6 +103,12 @@ if (fs.existsSync('/data/options.json')) {
       .map(x => x.trim())
       .filter(x => x.length > 0);
 
+  // Parse comma-separated values preserving empty entries (for optional per-inverter config)
+  const parseCommaSeparatedWithEmpties = (val: string) =>
+    val
+      .split(',')
+      .map(x => x.trim());
+
   const hostsEnv = getEnvVar('WINET_HOSTS') || getEnvVar('WINET_HOST');
 
   // Batch assign environment variables with optimized processing
@@ -117,6 +125,7 @@ if (fs.existsSync('/data/options.json')) {
     ssl: process.env.SSL === 'true',
     ha_prefix: getEnvVar('HA_PREFIX', 'homeassistant/sensor'),
     winet_names: parseCommaSeparated(getEnvVar('WINET_NAMES')),
+    modbus_ips: parseCommaSeparatedWithEmpties(getEnvVar('MODBUS_IPS')),
   });
 }
 
@@ -203,6 +212,11 @@ hosts.forEach((hostRaw: string, index: number) => {
     '', // Empty devicePrefix - using device serial numbers as identifiers
     inverterId, // Pass inverterId as nodeId to separate devices in HA
   );
+  
+  // Get Modbus IP for this inverter if configured
+  const modbusIp = options.modbus_ips?.[index];
+  log.info(`[${inverterId}] Modbus configuration: index=${index}, IP="${modbusIp}"`);
+  
   const winet = new winetHandler(
     log,
     host,
@@ -211,6 +225,7 @@ hosts.forEach((hostRaw: string, index: number) => {
     options.winet_user,
     options.winet_pass,
     new Analytics(options.analytics),
+    modbusIp, // Pass Modbus IP (undefined if not configured)
   );
 
   // Use Set for O(1) lookups instead of Array.includes() which is O(n)

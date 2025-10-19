@@ -29,7 +29,9 @@ export declare class winetHandler {
     private properties?;
     private callbackUpdatedStatus?;
     private ws?;
-    constructor(logger: winston.Logger, host: string, lang: string, frequency: number, winetUser?: string, winetPass?: string, analytics?: Analytics);
+    private modbusReader?;
+    private modbusEnabled;
+    constructor(logger: winston.Logger, host: string, lang: string, frequency: number, winetUser?: string, winetPass?: string, analytics?: Analytics, modbusIp?: string);
     setProperties(properties: Properties): void;
     setCallback(callback: (devices: z.infer<typeof DeviceSchema>[], deviceStatus: DeviceStatusMap) => void): void;
     private setWatchdog;
@@ -41,5 +43,10 @@ export declare class winetHandler {
     private onError;
     private onMessage;
     private updateDeviceStatus;
+    /**
+     * Augment device status with Modbus meter data
+     * Adds meter_power, grid_import_energy, and grid_export_energy
+     */
+    private addModbusMeterData;
     private scanDevices;
 }

@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "dotenv": "^17.2.3",
+    "modbus-serial": "^8.0.23",
     "mqtt": "^5.5.2",
     "posthog-node": "^5.10.0",
     "slugify": "^1.6.6",
