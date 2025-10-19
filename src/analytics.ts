@@ -17,7 +17,7 @@ export class Analytics {
       'phc_Xl9GlMHjhpVc9pGwR2U1Qga4e1pUaRPD2IrLGMy11eY',
       {
         host: 'https://posthog.nickstallman.net',
-      }
+      },
     );
 
     // Use constant for ping interval (1 hour = 3600000ms)
@@ -34,14 +34,14 @@ export class Analytics {
     }
     this.devicePingInterval = setInterval(
       this.pingDevices.bind(this),
-      3600 * 1000 * 6
+      3600 * 1000 * 6,
     );
   }
 
   pingDevices() {
     // Optimized device string generation using array join
     const deviceStrings = this.devices.map(
-      device => `${device.dev_model}:${device.dev_sn}`
+      device => `${device.dev_model}:${device.dev_sn}`,
     );
     const deviceString = deviceStrings.join(';');
 

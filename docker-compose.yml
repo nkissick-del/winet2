@@ -1,0 +1,50 @@
+services:
+  winet2:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: winet2-bridge
+    restart: unless-stopped
+    
+    # Environment variables from .env file
+    env_file:
+      - .env
+    
+    # Additional environment variables for Docker
+    environment:
+      - NODE_ENV=production
+      - TZ=Australia/Sydney
+    
+    # Network configuration
+    network_mode: host
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    
+    # Logging configuration
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# Optional: If you prefer bridge networking instead of host mode
+# Uncomment the networks section and change network_mode to winet2-network
+# networks:
+#   winet2-network:
+#     driver: bridge

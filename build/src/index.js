@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 const getProperties_js_1 = require("./getProperties.js");
 const winetHandler_js_1 = require("./winetHandler.js");
@@ -76,13 +86,11 @@ else {
     dotenv.config();
     // Helper function to trim and validate environment variables
     const getEnvVar = (key, defaultVal = '') => {
-        var _a;
-        const val = (_a = process.env[key]) === null || _a === void 0 ? void 0 : _a.trim();
+        const val = process.env[key]?.trim();
         return val && val.length > 0 ? val : defaultVal;
     };
     const getOptionalEnvVar = (key) => {
-        var _a;
-        const val = (_a = process.env[key]) === null || _a === void 0 ? void 0 : _a.trim();
+        const val = process.env[key]?.trim();
         return val && val.length > 0 ? val : undefined;
     };
     // Parse comma-separated values once and reuse
@@ -130,29 +138,42 @@ const normalizedBase = basePrefix.endsWith('/sensor')
     ? basePrefix
     : `${basePrefix}/sensor`;
 hosts.forEach((hostRaw, index) => {
-    var _a;
     const host = hostRaw.trim();
     if (!host)
         return; // Early return for empty hosts
-    // Optimized inverter ID generation
-    const customName = ((_a = options.winet_names) === null || _a === void 0 ? void 0 : _a[index]) || '';
+    // Optimized inverter ID generation - Match winet2-mac format
+    const customName = options.winet_names?.[index] || '';
     const safeName = customName
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '_')
         .replace(/^_+|_+$/g, '');
-    const inverterId = safeName || `inverter_${index + 1}`;
-    // Pre-calculated prefix to avoid string operations in loop
-    const haPrefix = `${normalizedBase}/${inverterId}`;
+    const inverterId = safeName || `inverter${index + 1}`; // Match winet2-mac: inverter1, inverter2
+    // Use simple HA discovery prefix without node_id layer (follows HA best practices)
+    const haPrefix = normalizedBase; // Just 'homeassistant/sensor'
     const log = logger.child({ inverter: inverterId, host });
-    log.info(`Using MQTT discovery prefix for ${inverterId}: ${haPrefix}`);
+    log.info(`Using MQTT discovery prefix: ${haPrefix}`);
     // Initialize MQTT client
     const mqtt = require('mqtt');
     const mqttClient = mqtt.connect(options.mqtt_url, {
         username: options.mqtt_user,
         password: options.mqtt_pass,
     });
+    // Add MQTT connection event handlers
+    mqttClient.on('connect', () => {
+        log.info(`[${inverterId}] Connected to MQTT broker at ${options.mqtt_url}`);
+    });
+    mqttClient.on('error', (error) => {
+        log.error(`[${inverterId}] MQTT connection error:`, error.message);
+    });
+    mqttClient.on('offline', () => {
+        log.warn(`[${inverterId}] MQTT client went offline`);
+    });
+    mqttClient.on('reconnect', () => {
+        log.info(`[${inverterId}] MQTT client reconnecting...`);
+    });
     // Initialize components with optimized parameters
-    const mqttPublisher = new homeassistant_js_1.MqttPublisher(log, mqttClient, haPrefix, inverterId);
+    const mqttPublisher = new homeassistant_js_1.MqttPublisher(log, mqttClient, haPrefix, '', // Empty devicePrefix - using device serial numbers as identifiers
+    inverterId);
     const winet = new winetHandler_js_1.winetHandler(log, host, lang, frequency, options.winet_user, options.winet_pass, new analytics_js_1.Analytics(options.analytics));
     // Use Set for O(1) lookups instead of Array.includes() which is O(n)
     const configuredSensors = new Set();

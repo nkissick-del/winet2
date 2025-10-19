@@ -16,7 +16,7 @@ exports.ConnectSchema = zod_1.z.object({
     token: zod_1.z.string(),
     uid: zod_1.z.number().int(),
     tips_disable: zod_1.z.number().int().optional(),
-    ip: zod_1.z.string().ip().optional(),
+    ip: zod_1.z.string().optional(),
     virgin_flag: zod_1.z.number().int().optional(),
     isFirstLogin: zod_1.z.number().int().optional(),
     forceModifyPasswd: zod_1.z.number().int().optional(),

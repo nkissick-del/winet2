@@ -4,6 +4,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SSLConfig = void 0;
 class SSLConfig {
+    logger;
+    validationMode;
+    sslEnabled;
+    certificateFingerprints;
     constructor(logger) {
         this.logger = logger;
         this.validationMode = process.env.SSL_VALIDATION || 'bypass';

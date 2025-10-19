@@ -7,9 +7,10 @@ export declare class MqttPublisher {
     private mqttClient;
     private haPrefix;
     private devicePrefix;
+    private nodeId;
     private publishedDiscovery;
     private lastStatusPublish;
-    constructor(logger: winston.Logger, mqttClient: any, haPrefix: string, devicePrefix: string);
+    constructor(logger: winston.Logger, mqttClient: any, haPrefix: string, devicePrefix: string, nodeId: string);
     publishDiscovery(devices: z.infer<typeof DeviceSchema>[], deviceStatus: DeviceStatusMap): void;
     publishStatus(devices: z.infer<typeof DeviceSchema>[], deviceStatus: DeviceStatusMap): void;
     clearDiscoveryCache(): void;

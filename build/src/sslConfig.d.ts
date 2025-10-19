@@ -1,4 +1,3 @@
-/// <reference types="node" />
 import * as winston from 'winston';
 import * as tls from 'tls';
 export declare class SSLConfig {

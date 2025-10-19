@@ -14,7 +14,7 @@ export function getProperties(
   logger: winston.Logger,
   host: string,
   lang: string,
-  ssl: boolean
+  ssl: boolean,
 ): Promise<PropertiesResult> {
   return new Promise((resolve, reject) => {
     const url = `${ssl ? 'https' : 'http'}://${host}/i18n/${lang}.properties`;
@@ -64,7 +64,7 @@ export function getProperties(
         .on('error', (err: Error) => {
           if (!ssl) {
             logger.warn(
-              'Newer Winet versions require SSL to be enabled. Retrying'
+              'Newer Winet versions require SSL to be enabled. Retrying',
             );
             // Retry with ssl set to true
             getProperties(logger, host, lang, true).then(resolve).catch(reject);

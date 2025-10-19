@@ -34,7 +34,7 @@ export class winetHandler {
   private properties?: Properties;
   private callbackUpdatedStatus?: (
     devices: z.infer<typeof DeviceSchema>[],
-    deviceStatus: DeviceStatusMap
+    deviceStatus: DeviceStatusMap,
   ) => void;
   private ws?: WebSocket;
 
@@ -45,7 +45,7 @@ export class winetHandler {
     frequency: number,
     winetUser?: string,
     winetPass?: string,
-    analytics?: Analytics
+    analytics?: Analytics,
   ) {
     this.winetUser = winetUser || 'admin';
     this.winetPass = winetPass || 'pw8888';
@@ -64,8 +64,8 @@ export class winetHandler {
   setCallback(
     callback: (
       devices: z.infer<typeof DeviceSchema>[],
-      deviceStatus: DeviceStatusMap
-    ) => void
+      deviceStatus: DeviceStatusMap,
+    ) => void,
   ): void {
     this.callbackUpdatedStatus = callback;
   }
@@ -115,7 +115,7 @@ export class winetHandler {
       this.ssl
         ? `wss://${this.host}:443/ws/home/overview`
         : `ws://${this.host}:8082/ws/home/overview`,
-      wsOptions
+      wsOptions,
     );
 
     this.ws.on('open', this.onOpen.bind(this));
@@ -137,7 +137,7 @@ export class winetHandler {
       () => {
         this.connect();
       },
-      this.frequency * 1000 * 3
+      this.frequency * 1000 * 3,
     );
   }
 
@@ -169,11 +169,35 @@ export class winetHandler {
 
     try {
       const message = JSON.parse(data.toString());
-      const {service, result_code, result_data} = message;
+      const {result_code, result_data} = message;
+
+      // Extract service from result_data, not from top level
+      const service = result_data?.service;
+
+      // Debug log the raw message to understand what's being received
+      this.logger.debug('Received message:', {
+        service,
+        result_code,
+        hasResultData: !!result_data,
+        messageKeys: Object.keys(message),
+      });
+
+      // Handle case where service is undefined or null
+      if (!service) {
+        this.logger.warn(
+          'Received message without service field in result_data:',
+          {
+            result_code,
+            result_data,
+            messageKeys: Object.keys(message),
+          },
+        );
+        return;
+      }
 
       if (result_code !== 1) {
         this.logger.warn(
-          `Received non-success result_code: ${result_code} for service: ${service}`
+          `Received non-success result_code: ${result_code} for service: ${service}`,
         );
       }
 
@@ -185,7 +209,7 @@ export class winetHandler {
           if (!connectResult.success) {
             this.analytics?.registerError('connectSchema', 'successFalse');
             this.logger.error(
-              'Invalid connect message: schema validation failed'
+              'Invalid connect message: schema validation failed',
             );
             return;
           }
@@ -202,12 +226,12 @@ export class winetHandler {
             this.winetVersion = 1;
           } else if (connectData.forceModifyPasswd !== undefined) {
             this.logger.info(
-              'Connected to a Winet-S2 device with newer firmware'
+              'Connected to a Winet-S2 device with newer firmware',
             );
             this.winetVersion = 3;
           } else {
             this.logger.info(
-              'Connected to a Winet-S2 device with older firmware'
+              'Connected to a Winet-S2 device with older firmware',
             );
             this.winetVersion = 2;
           }
@@ -231,7 +255,7 @@ export class winetHandler {
           if (!loginResult.success) {
             this.analytics?.registerError('loginSchema', 'successFalse');
             this.logger.error(
-              'Invalid login message: schema validation failed'
+              'Invalid login message: schema validation failed',
             );
             return;
           }
@@ -266,14 +290,14 @@ export class winetHandler {
           if (!deviceListResult.success) {
             this.analytics?.registerError('deviceListSchema', 'successFalse');
             this.logger.error(
-              'Invalid devicelist message: schema validation failed'
+              'Invalid devicelist message: schema validation failed',
             );
             return;
           }
 
           const deviceListData = deviceListResult.data;
           const existingDeviceSerials = new Set(
-            this.devices.map(d => d.dev_sn)
+            this.devices.map(d => d.dev_sn),
           );
           const alphanumericRegex = /[^a-zA-Z0-9]/g;
 
@@ -283,7 +307,7 @@ export class winetHandler {
               this.logger.info(
                 'Skipping device:',
                 device.dev_name,
-                device.dev_sn
+                device.dev_sn,
               );
               continue;
             }
@@ -292,7 +316,7 @@ export class winetHandler {
               this.deviceStatus[device.dev_id] = {} as any;
               device.dev_model = device.dev_model.replace(
                 alphanumericRegex,
-                ''
+                '',
               );
               device.dev_sn = device.dev_sn.replace(alphanumericRegex, '');
 
@@ -300,7 +324,7 @@ export class winetHandler {
                 .map(s => QueryStages[s])
                 .join(', ');
               this.logger.info(
-                `Detected device: ${device.dev_model} (${device.dev_sn}) - Type: ${device.dev_type}, Stages: ${stageNames}`
+                `Detected device: ${device.dev_model} (${device.dev_sn}) - Type: ${device.dev_type}, Stages: ${stageNames}`,
               );
 
               this.devices.push(device);
@@ -309,7 +333,16 @@ export class winetHandler {
           }
 
           this.analytics?.registerDevices(this.devices);
+
+          // Start continuous device scanning
           this.scanDevices();
+          this.scanInterval = setInterval(() => {
+            this.scanDevices();
+          }, this.frequency * 1000);
+
+          this.logger.info(
+            `Started continuous scanning with ${this.frequency}s interval`,
+          );
           break;
         }
 
@@ -324,7 +357,7 @@ export class winetHandler {
           if (!realtimeResult.success) {
             this.analytics?.registerError('realtimeSchema', 'successFalse');
             this.logger.error(
-              'Invalid realtime message: schema validation failed'
+              'Invalid realtime message: schema validation failed',
             );
             this.reconnect();
             return;
@@ -332,7 +365,7 @@ export class winetHandler {
 
           if (receivedDevice === undefined) {
             this.logger.error(
-              'Received realtime data without a current device'
+              'Received realtime data without a current device',
             );
             return;
           }
@@ -379,7 +412,7 @@ export class winetHandler {
           if (!directResult.success) {
             this.analytics?.registerError('directSchema', 'successFalse');
             this.logger.error(
-              'Invalid direct message: schema validation failed'
+              'Invalid direct message: schema validation failed',
             );
             return;
           }
@@ -431,7 +464,7 @@ export class winetHandler {
                 data.current === '--'
                   ? undefined
                   : Math.round(
-                      parseFloat(data.current) * parseFloat(data.voltage) * 100
+                      parseFloat(data.current) * parseFloat(data.voltage) * 100,
                     ) / 100,
               unit: 'W',
               dirty: true,
@@ -474,8 +507,17 @@ export class winetHandler {
         }
 
         default:
-          this.analytics?.registerError('unknownService', service);
-          this.logger.error('Received unknown message type:', service);
+          this.analytics?.registerError(
+            'unknownService',
+            service || 'undefined',
+          );
+          this.logger.error('Received unknown message type:', {
+            service,
+            result_code,
+            hasResultData: !!result_data,
+            messageKeys: Object.keys(message),
+            fullMessage: message,
+          });
       }
     } catch (error) {
       this.logger.error('Failed to parse message:', error);
@@ -503,7 +545,7 @@ export class winetHandler {
     if (this.inFlightDevice !== undefined) {
       this.analytics?.registerError('scanDevices', 'inFlightDevice');
       this.logger.info(
-        `Skipping scanDevices, in flight device: ${this.inFlightDevice}`
+        `Skipping scanDevices, in flight device: ${this.inFlightDevice}`,
       );
       this.watchdogCount++;
 
@@ -522,12 +564,22 @@ export class winetHandler {
       ];
     } else if (this.currentStages.length === 0) {
       const currentIndex = this.devices.findIndex(
-        device => device.dev_id === this.currentDevice
+        device => device.dev_id === this.currentDevice,
       );
       const nextIndex = currentIndex + 1;
 
       if (nextIndex >= this.devices.length) {
         this.currentDevice = undefined;
+
+        // Calculate total data points for logging
+        const totalDataPoints = Object.values(this.deviceStatus).reduce(
+          (count, deviceData) => count + Object.keys(deviceData as any).length,
+          0,
+        );
+
+        this.logger.debug(
+          `Completed scan cycle - ${this.devices.length} devices, ${totalDataPoints} data points`,
+        );
         this.callbackUpdatedStatus?.(this.devices, this.deviceStatus);
         return;
       }
@@ -557,6 +609,11 @@ export class winetHandler {
     }
 
     this.inFlightDevice = this.currentDevice;
+
+    this.logger.debug(
+      `Scanning device ${this.currentDevice} with service '${service}'`,
+    );
+
     this.sendPacket({
       service: service,
       dev_id: this.currentDevice!.toString(),

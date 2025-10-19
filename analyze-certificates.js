@@ -72,7 +72,7 @@ async function analyzeCertificate(ip) {
             recommendations: generateRecommendations(
               cert,
               strictResult,
-              wsResult
+              wsResult,
             ),
           };
 
@@ -202,16 +202,16 @@ function generateRecommendations(cert, strictHTTPS, wsResults) {
 
   if (strictHTTPS && wsResults.strict) {
     recommendations.push(
-      '🎉 EXCELLENT: Enable strict SSL validation (rejectUnauthorized: true)'
+      '🎉 EXCELLENT: Enable strict SSL validation (rejectUnauthorized: true)',
     );
     recommendations.push(
-      '🔒 HIGH SECURITY: This inverter has valid SSL certificates'
+      '🔒 HIGH SECURITY: This inverter has valid SSL certificates',
     );
   } else if (cert && cert.fingerprint256) {
     recommendations.push('🔧 RECOMMENDED: Use certificate pinning');
     recommendations.push(`📌 Pin to: ${cert.fingerprint256}`);
     recommendations.push(
-      '🛡️  MEDIUM SECURITY: Validate against known certificate only'
+      '🛡️  MEDIUM SECURITY: Validate against known certificate only',
     );
   } else {
     recommendations.push('⚠️  CAUTION: SSL bypass required (current behavior)');
@@ -226,7 +226,7 @@ async function generateConfiguration(analyses) {
   console.log('=====================================\\n');
 
   const allCanUseStrict = analyses.every(
-    a => a.httpsStrict && a.webSocketStrict
+    a => a.httpsStrict && a.webSocketStrict,
   );
   const allHaveCerts = analyses.every(a => a.cert && a.cert.fingerprint256);
 
@@ -241,7 +241,7 @@ async function generateConfiguration(analyses) {
     analyses.forEach((analysis, index) => {
       if (analysis.cert) {
         console.log(
-          `INVERTER_${index + 1}_CERT_FINGERPRINT=${analysis.cert.fingerprint256}`
+          `INVERTER_${index + 1}_CERT_FINGERPRINT=${analysis.cert.fingerprint256}`,
         );
       }
     });
@@ -259,7 +259,7 @@ async function generateConfiguration(analyses) {
 
   fs.writeFileSync(
     'inverter-certificates.json',
-    JSON.stringify(certData, null, 2)
+    JSON.stringify(certData, null, 2),
   );
   console.log('✅ Certificate analysis saved to: inverter-certificates.json');
 }

@@ -15,7 +15,7 @@ console.log('🚀 WINET2 Application Starting - Multi-inverter support enabled')
 process.on('uncaughtException', (error: Error) => {
   console.error(
     '❌ UNCAUGHT EXCEPTION - This should not crash the application:',
-    error
+    error,
   );
   // Log but don't exit - let the application continue
 });
@@ -23,7 +23,7 @@ process.on('uncaughtException', (error: Error) => {
 process.on('unhandledRejection', (reason: unknown) => {
   console.error(
     '❌ UNHANDLED PROMISE REJECTION - This should not crash the application:',
-    reason
+    reason,
   );
   // Log but don't exit - let the application continue
 });
@@ -40,7 +40,7 @@ const logger = winston.createLogger({
         `${timestamp} ${level}: ${message} ` +
         `${Object.keys(extraData).length ? util.format(extraData) : ''}`
       );
-    })
+    }),
   ),
   transports: [new winston.transports.Console()],
 });
@@ -147,7 +147,7 @@ const totalInverters = hosts.length;
 const shouldStagger = totalInverters > 1 && frequency >= 5;
 const basePrefix = (options.ha_prefix || 'homeassistant/sensor').replace(
   /\/+$/,
-  ''
+  '',
 );
 const normalizedBase = basePrefix.endsWith('/sensor')
   ? basePrefix
@@ -157,19 +157,19 @@ hosts.forEach((hostRaw: string, index: number) => {
   const host = hostRaw.trim();
   if (!host) return; // Early return for empty hosts
 
-  // Optimized inverter ID generation
+  // Optimized inverter ID generation - Match winet2-mac format
   const customName = options.winet_names?.[index] || '';
   const safeName = customName
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
-  const inverterId = safeName || `inverter_${index + 1}`;
+  const inverterId = safeName || `inverter${index + 1}`; // Match winet2-mac: inverter1, inverter2
 
-  // Pre-calculated prefix to avoid string operations in loop
-  const haPrefix = `${normalizedBase}/${inverterId}`;
+  // Use simple HA discovery prefix without node_id layer (follows HA best practices)
+  const haPrefix = normalizedBase; // Just 'homeassistant/sensor'
   const log = logger.child({inverter: inverterId, host});
 
-  log.info(`Using MQTT discovery prefix for ${inverterId}: ${haPrefix}`);
+  log.info(`Using MQTT discovery prefix: ${haPrefix}`);
 
   // Initialize MQTT client
   const mqtt = require('mqtt');
@@ -178,12 +178,30 @@ hosts.forEach((hostRaw: string, index: number) => {
     password: options.mqtt_pass,
   });
 
+  // Add MQTT connection event handlers
+  mqttClient.on('connect', () => {
+    log.info(`[${inverterId}] Connected to MQTT broker at ${options.mqtt_url}`);
+  });
+
+  mqttClient.on('error', (error: Error) => {
+    log.error(`[${inverterId}] MQTT connection error:`, error.message);
+  });
+
+  mqttClient.on('offline', () => {
+    log.warn(`[${inverterId}] MQTT client went offline`);
+  });
+
+  mqttClient.on('reconnect', () => {
+    log.info(`[${inverterId}] MQTT client reconnecting...`);
+  });
+
   // Initialize components with optimized parameters
   const mqttPublisher = new MqttPublisher(
     log,
     mqttClient,
     haPrefix,
-    inverterId
+    '', // Empty devicePrefix - using device serial numbers as identifiers
+    inverterId, // Pass inverterId as nodeId to separate devices in HA
   );
   const winet = new winetHandler(
     log,
@@ -192,7 +210,7 @@ hosts.forEach((hostRaw: string, index: number) => {
     frequency,
     options.winet_user,
     options.winet_pass,
-    new Analytics(options.analytics)
+    new Analytics(options.analytics),
   );
 
   // Use Set for O(1) lookups instead of Array.includes() which is O(n)
@@ -204,7 +222,7 @@ hosts.forEach((hostRaw: string, index: number) => {
     configuredSensors.clear();
     configuredDevices.clear();
     log.info(
-      `[${inverterId}] Cleared sensor cache - will reconfigure all sensors on next update`
+      `[${inverterId}] Cleared sensor cache - will reconfigure all sensors on next update`,
     );
   }, 3600000); // Use milliseconds directly (1 hour = 3600000ms)
 
@@ -213,7 +231,7 @@ hosts.forEach((hostRaw: string, index: number) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   winet.setCallback((devices: any, deviceStatus: any) => {
     log.info(
-      `[${inverterId}] Received device update for ${devices.length} devices`
+      `[${inverterId}] Received device update for ${devices.length} devices`,
     );
 
     // First publish discovery configurations for new devices/sensors
@@ -223,7 +241,7 @@ hosts.forEach((hostRaw: string, index: number) => {
     mqttPublisher.publishStatus(devices, deviceStatus);
 
     log.info(
-      `[${inverterId}] Published updates to MQTT for ${devices.length} devices`
+      `[${inverterId}] Published updates to MQTT for ${devices.length} devices`,
     );
   });
 
@@ -238,7 +256,7 @@ hosts.forEach((hostRaw: string, index: number) => {
       .catch((err: Error) => {
         log.error(
           `[${inverterId}] Failed to fetch l18n properties required to start. Will retry.`,
-          err
+          err,
         );
         // Retry after a longer backoff to avoid spamming the device/network
         setTimeout(init, Math.max(frequency * 1000 * 6, 30000));
@@ -252,7 +270,7 @@ hosts.forEach((hostRaw: string, index: number) => {
     log.info(
       `[${inverterId}] Staggered start: ${totalInverters} inverters, delay ${
         staggerDelay / 1000
-      }s`
+      }s`,
     );
     setTimeout(init, staggerDelay);
   } else {

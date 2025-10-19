@@ -1,5 +1,7 @@
 # Winet2 to Home Assistant via MQTT
 
+**Version 2.0.0** | **Node.js 20 LTS** | **TypeScript 5.9.3** | **Zod v4**
+
 Bridge Sungrow Winet/Winet‑S/Winet‑S2 gateways to Home Assistant using MQTT Discovery.
 
 - **What it is**: A Node.js/TypeScript service that connects to Winet devices over WebSocket, polls live metrics, and publishes HA‑compatible MQTT topics.
@@ -14,6 +16,9 @@ Bridge Sungrow Winet/Winet‑S/Winet‑S2 gateways to Home Assistant using MQTT 
 - 📊 **29+ sensor types** per inverter (power, voltage, current, temperature, etc.)
 - 🛡️ **Robust error handling** with graceful recovery
 - ⚡ **Performance optimized** with efficient data structures
+- 🏷️ **Friendly sensor naming** - "Daily Yield (inverter_1)" format
+- 🐳 **Docker support** with Node.js 20 LTS
+- 📦 **Modern stack** - TypeScript 5.9.3, Zod v4, latest dependencies
 
 ## 🙏 Acknowledgments
 
@@ -48,13 +53,27 @@ WINET_USER=admin
 WINET_PASS=pw8888
 ```
 
-### 2. Install and Run
+### 2. Docker Deployment (Recommended)
 ```bash
-npm install
-npm run cli
+# Build and run with Docker
+docker build -t winet2 .
+docker run -d --name winet2-bridge --restart unless-stopped --env-file .env winet2
+
+# Or use docker-compose
+docker-compose up -d
 ```
 
-Home Assistant will auto-discover entities via MQTT Discovery under `homeassistant/sensor/...`.
+### 3. Local Development
+```bash
+npm install
+npm run compile
+npm run cli  # Runs the compiled application
+```
+
+Home Assistant will auto-discover entities via MQTT Discovery under `homeassistant/sensor/...` with friendly names like:
+- **"Daily Yield (inverter_1)"**
+- **"Total Active Power (inverter_1)"** 
+- **"Phase A Voltage (inverter_2)"**
 
 ## 🔗 Multiple Inverters
 
@@ -65,8 +84,8 @@ Set a comma-separated list of hosts via `WINET_HOSTS`:
 WINET_HOSTS=192.168.1.10,192.168.1.11,192.168.1.12
 MQTT_URL=mqtt://192.168.1.101:1883
 
-# Optional: Custom names for each inverter
-WINET_NAMES=House,Shed,Garage
+# Optional: Custom names for each inverter (no spaces, MQTT-safe)
+WINET_NAMES=inverter_1,inverter_2,inverter_3
 
 # Optional: Customize discovery prefix
 HA_PREFIX=homeassistant/sensor
@@ -148,9 +167,18 @@ Create `/data/options.json` for Home Assistant add-on compatibility:
 }
 ```
 
-## 🔧 Supported Hardware & Sensors
+## 🔧 Technical Specifications
 
-### Inverter Models
+### Runtime Requirements
+- **Node.js**: 20 LTS (Alpine Linux in Docker)
+- **TypeScript**: 5.9.3
+- **Dependencies**: Modern stack (zod v4, winston, mqtt, ws)
+- **Memory**: ~50MB typical usage
+- **CPU**: Minimal (polling every 10 seconds)
+
+### Supported Hardware
+
+#### Inverter Models
 - ✅ **Sungrow SG50RS** (Type 21) - REAL + DIRECT stages
 - ✅ **Winet-S/Winet-S2** devices with firmware variations
 - ✅ **Auto-detection** of device capabilities and sensor types
@@ -191,6 +219,45 @@ SSL_VALIDATION=bypass
 mosquitto_pub -h your-mqtt-host -u username -P password -t test -m "hello"
 ```
 
+## 🐳 Docker Deployment
+
+### Environment Variables with Docker
+```bash
+# Create .env file with your configuration
+cat > .env << EOF
+WINET_HOSTS=192.168.1.114,192.168.1.12
+WINET_NAMES=inverter_1,inverter_2
+MQTT_URL=mqtt://192.168.1.101:1883
+EOF
+
+# Build and deploy
+docker build -t winet2 .
+docker run -d --name winet2-bridge --restart unless-stopped --env-file .env winet2
+```
+
+### Docker Compose (Recommended)
+```yaml
+version: '3.8'
+services:
+  winet2:
+    build: .
+    container_name: winet2-bridge
+    restart: unless-stopped
+    env_file: .env
+    network_mode: host  # Required for inverter discovery
+```
+
+### Health Checks
+The container includes built-in health monitoring:
+```bash
+# Check container health
+docker ps | grep winet2
+# Should show "healthy" status
+
+# View logs
+docker logs winet2-bridge --tail 50
+```
+
 ## 🏗️ Architecture Overview
 
 ### Data Flow
@@ -222,11 +289,12 @@ This project is based on **[winet-extractor](https://github.com/nickstallman/hom
 
 ### Major Enhancements in winet2
 
-#### 🔧 **Complete TypeScript Rewrite**
+#### 🔧 **Complete TypeScript Rewrite (v2.0.0)**
 - **Converted from JavaScript to TypeScript** for improved type safety and developer experience
 - **Full type definitions** for all data structures, device schemas, and API responses
-- **Zod schema validation** for runtime type checking and data validation
+- **Zod v4 schema validation** for runtime type checking and data validation
 - **Enhanced IntelliSense** and compile-time error detection
+- **Node.js 20 LTS** runtime with Alpine Linux containers
 
 #### 🏗️ **Architecture Improvements**
 - **Modular design** with separated concerns:
@@ -258,6 +326,8 @@ This project is based on **[winet-extractor](https://github.com/nickstallman/hom
 #### 📊 **MQTT & Home Assistant Integration**
 - **Enhanced discovery protocol** with proper device classification
 - **Automatic sensor configuration** with appropriate device classes
+- **Improved sensor naming** - "Sensor Name (Device)" format for clarity
+- **Individual sensor topics** matching Home Assistant best practices
 - **State management** with dirty flag tracking for efficient updates
 - **Retention policies** and optimal publishing strategies
 
@@ -270,6 +340,26 @@ This project is based on **[winet-extractor](https://github.com/nickstallman/hom
 ### Development Notes
 
 This enhanced version was developed with a focus on code quality, maintainability, and expanded features, building on the original foundation.
+
+## 🆕 What's New in v2.0.0
+
+### Modernized Stack
+- ✅ **Node.js 20 LTS** (upgraded from 18)
+- ✅ **TypeScript 5.9.3** (latest stable)
+- ✅ **Zod v4** (schema validation with performance improvements)
+- ✅ **All dependencies updated** to latest stable versions
+
+### Improved User Experience  
+- ✅ **Better sensor naming** - "Daily Yield (inverter_1)" format
+- ✅ **Cleaner MQTT topics** - individual sensor topics for better HA integration
+- ✅ **Enhanced Docker support** with multi-stage builds
+- ✅ **Comprehensive cleanup** - removed unused dependencies (yargs)
+
+### Developer Experience
+- ✅ **Modern linting** with Google TypeScript Style (GTS) v6
+- ✅ **Type safety improvements** with latest TypeScript features
+- ✅ **Performance optimizations** across all modules
+- ✅ **Clean codebase** - no technical debt or redundant code
 
 ### Contributing
 - Original concept and protocol: **Nick Stallman**

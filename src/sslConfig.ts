@@ -1,8 +1,6 @@
 // SSL Configuration Helper
 // This module handles SSL security level configuration and validation
 
-import * as fs from 'fs';
-import * as path from 'path';
 import * as winston from 'winston';
 import * as tls from 'tls';
 
@@ -38,7 +36,7 @@ export class SSLConfig {
 
     if (!validModes.includes(this.validationMode)) {
       this.logger.warn(
-        `⚠️  Invalid SSL_VALIDATION mode: ${this.validationMode}. Using 'bypass'.`
+        `⚠️  Invalid SSL_VALIDATION mode: ${this.validationMode}. Using 'bypass'.`,
       );
       this.validationMode = 'bypass';
     }
@@ -48,7 +46,7 @@ export class SSLConfig {
       this.certificateFingerprints.length === 0
     ) {
       this.logger.warn(
-        "⚠️  SSL_VALIDATION=pinned but no INVERTER_CERT_FINGERPRINTS provided. Falling back to 'bypass'."
+        "⚠️  SSL_VALIDATION=pinned but no INVERTER_CERT_FINGERPRINTS provided. Falling back to 'bypass'.",
       );
       this.validationMode = 'bypass';
     }
@@ -57,7 +55,7 @@ export class SSLConfig {
   private logConfiguration(): void {
     if (!this.sslEnabled) {
       this.logger.info(
-        '🔓 SSL: DISABLED - Using unencrypted HTTP/WS connections'
+        '🔓 SSL: DISABLED - Using unencrypted HTTP/WS connections',
       );
       return;
     }
@@ -76,24 +74,24 @@ export class SSLConfig {
 
     this.logger.info('🔐 SSL Configuration:');
     this.logger.info(
-      `   Mode: ${securityIcons[this.validationMode]} ${this.validationMode.toUpperCase()}`
+      `   Mode: ${securityIcons[this.validationMode]} ${this.validationMode.toUpperCase()}`,
     );
     this.logger.info(
-      `   Security Level: ${securityLevels[this.validationMode]}`
+      `   Security Level: ${securityLevels[this.validationMode]}`,
     );
 
     if (this.validationMode === 'pinned') {
       this.logger.info(
-        `   Certificate Fingerprints: ${this.certificateFingerprints.length} configured`
+        `   Certificate Fingerprints: ${this.certificateFingerprints.length} configured`,
       );
     }
 
     if (this.validationMode === 'bypass') {
       this.logger.info(
-        "   ℹ️  Consider upgrading to 'pinned' mode for enhanced security"
+        "   ℹ️  Consider upgrading to 'pinned' mode for enhanced security",
       );
       this.logger.info(
-        "   ℹ️  Run './quick-ssl-check.sh' to analyze your inverter certificates"
+        "   ℹ️  Run './quick-ssl-check.sh' to analyze your inverter certificates",
       );
     }
   }
@@ -114,7 +112,7 @@ export class SSLConfig {
           rejectUnauthorized: false, // Still bypass for self-signed certs
           checkServerIdentity: (
             hostname: string,
-            cert: tls.PeerCertificate
+            cert: tls.PeerCertificate,
           ) => {
             const certFingerprint = cert.fingerprint256
               .replace(/:/g, '')
@@ -125,10 +123,10 @@ export class SSLConfig {
             }
 
             this.logger.error(
-              `❌ Certificate fingerprint mismatch for ${hostname}`
+              `❌ Certificate fingerprint mismatch for ${hostname}`,
             );
             this.logger.error(
-              `   Expected one of: ${this.certificateFingerprints.join(', ')}`
+              `   Expected one of: ${this.certificateFingerprints.join(', ')}`,
             );
             this.logger.error(`   Received: ${certFingerprint}`);
 
@@ -187,13 +185,13 @@ export class SSLConfig {
     logger.info('');
     logger.info('# Security level (choose one):');
     logger.info(
-      'SSL_VALIDATION=bypass    # Default - works with all inverters'
+      'SSL_VALIDATION=bypass    # Default - works with all inverters',
     );
     logger.info(
-      'SSL_VALIDATION=pinned    # Enhanced security with certificate pinning'
+      'SSL_VALIDATION=pinned    # Enhanced security with certificate pinning',
     );
     logger.info(
-      'SSL_VALIDATION=strict    # Maximum security (may fail with most inverters)'
+      'SSL_VALIDATION=strict    # Maximum security (may fail with most inverters)',
     );
     logger.info('');
     logger.info('# For pinned mode, add certificate fingerprints:');

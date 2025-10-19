@@ -15,7 +15,7 @@ export const ConnectSchema = z.object({
   token: z.string(),
   uid: z.number().int(),
   tips_disable: z.number().int().optional(),
-  ip: z.string().ip().optional(),
+  ip: z.string().optional(),
   virgin_flag: z.number().int().optional(),
   isFirstLogin: z.number().int().optional(),
   forceModifyPasswd: z.number().int().optional(),

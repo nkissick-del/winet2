@@ -1,33 +1,31 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MqttPublisher = void 0;
-const slugify_1 = __importDefault(require("slugify"));
 class MqttPublisher {
-    constructor(logger, mqttClient, haPrefix, devicePrefix) {
-        this.publishedDiscovery = new Set();
-        this.lastStatusPublish = {};
+    logger;
+    mqttClient;
+    haPrefix;
+    devicePrefix;
+    nodeId; // Add nodeId to identify this inverter instance
+    publishedDiscovery = new Set();
+    lastStatusPublish = {};
+    constructor(logger, mqttClient, haPrefix, devicePrefix, nodeId) {
         this.logger = logger;
         this.mqttClient = mqttClient;
         this.haPrefix = haPrefix;
         this.devicePrefix = devicePrefix;
+        this.nodeId = nodeId;
     }
     publishDiscovery(devices, deviceStatus) {
         for (const device of devices) {
             const deviceStats = deviceStatus[device.dev_id];
             if (!deviceStats)
                 continue;
-            const deviceId = (0, slugify_1.default)(`${this.devicePrefix} ${device.dev_model} ${device.dev_sn}`, {
-                lower: true,
-                strict: true,
-                replacement: '_',
-            });
+            const deviceId = `${device.dev_model}_${device.dev_sn}`; // Match winet2-mac format: SG50RS_A22C1208343
             // Create device discovery config
             const deviceConfig = {
-                identifiers: [`${this.devicePrefix}_${device.dev_sn}`],
-                name: `${device.dev_model} (${device.dev_sn})`,
+                identifiers: [device.dev_sn], // Use just the serial number as identifier
+                name: `${this.nodeId} (${device.dev_model}-${device.dev_sn})`, // Use friendly name from env + (Model-Serial)
                 model: device.dev_model,
                 manufacturer: 'Sungrow',
                 serial_number: device.dev_sn,
@@ -37,15 +35,15 @@ class MqttPublisher {
                     continue;
                 const dp = dataPoint;
                 const sensorId = `${deviceId}_${slug}`;
-                const discoveryKey = `${device.dev_id}_${slug}`;
+                const discoveryKey = `${deviceId}_${slug}`;
                 // Skip if already published
                 if (this.publishedDiscovery.has(discoveryKey))
                     continue;
                 const sensorConfig = {
                     unique_id: sensorId,
-                    name: `${device.dev_model} ${dp.name}`,
-                    state_topic: `${this.haPrefix}/${deviceId}/state`,
-                    value_template: `{{ value_json.${slug}.value }}`,
+                    name: `${dp.name} (${this.nodeId})`,
+                    state_topic: `${this.haPrefix}/${this.nodeId}_${deviceId}/${slug}/state`,
+                    value_template: '{{ value_json.value }}',
                     device: deviceConfig,
                 };
                 // Add unit of measurement if available
@@ -92,7 +90,10 @@ class MqttPublisher {
                             break;
                     }
                 }
-                const discoveryTopic = `${this.haPrefix}/sensor/${deviceId}/${slug}/config`;
+                // HA best practice: discovery topic should match winet2-mac structure
+                const discoveryTopic = `${this.haPrefix}/${this.nodeId}_${deviceId}/${slug}/config`;
+                // Debug logging to diagnose the issue
+                this.logger.info(`Publishing discovery: nodeId="${this.nodeId}", deviceId="${deviceId}", sensorId="${sensorId}", topic="${discoveryTopic}"`);
                 this.mqttClient.publish(discoveryTopic, JSON.stringify(sensorConfig), { retain: true }, (error) => {
                     if (error) {
                         this.logger.error(`Failed to publish discovery for ${sensorId}:`, error);
@@ -110,59 +111,41 @@ class MqttPublisher {
             const deviceStats = deviceStatus[device.dev_id];
             if (!deviceStats)
                 continue;
-            const deviceId = (0, slugify_1.default)(`${this.devicePrefix} ${device.dev_model} ${device.dev_sn}`, {
-                lower: true,
-                strict: true,
-                replacement: '_',
-            });
-            // Check if any data points are dirty or enough time has passed
-            let shouldPublish = false;
-            const now = Date.now();
-            const lastPublish = this.lastStatusPublish[deviceId] || 0;
-            const minInterval = 30000; // 30 seconds minimum interval
-            // Check for dirty data points or time-based publish
-            for (const dataPoint of Object.values(deviceStats)) {
-                if (dataPoint &&
-                    typeof dataPoint === 'object' &&
-                    dataPoint.dirty) {
-                    shouldPublish = true;
-                    break;
-                }
-            }
-            // Force publish every 5 minutes regardless of dirty state
-            if (!shouldPublish && now - lastPublish > 300000) {
-                shouldPublish = true;
-            }
-            // Don't publish too frequently
-            if (shouldPublish && now - lastPublish < minInterval) {
-                shouldPublish = false;
-            }
-            if (!shouldPublish)
-                continue;
-            // Prepare status payload
-            const statusPayload = {};
+            const deviceId = `${device.dev_model}_${device.dev_sn}`; // Match winet2-mac format: SG50RS_A22C1208343
+            // Publish individual sensor data to separate topics (like winet2-mac)
+            let publishedSensors = 0;
             for (const [slug, dataPoint] of Object.entries(deviceStats)) {
-                if (dataPoint && typeof dataPoint === 'object') {
-                    const dp = dataPoint;
-                    statusPayload[slug] = {
-                        value: dp.value,
-                        unit: dp.unit,
-                        name: dp.name,
-                    };
-                    // Clear dirty flag
-                    dp.dirty = false;
+                if (!dataPoint || typeof dataPoint !== 'object')
+                    continue;
+                const dp = dataPoint;
+                // Only publish if data has changed (dirty flag)
+                if (!dp.dirty)
+                    continue;
+                const sensorTopic = `${this.haPrefix}/${this.nodeId}_${deviceId}/${slug}/state`;
+                // Simple payload like winet2-mac (not complex nested JSON)
+                const sensorPayload = {
+                    value: dp.value,
+                };
+                // Add unit if available (like winet2-mac)
+                if (dp.unit && dp.unit !== '') {
+                    sensorPayload.unit_of_measurement = dp.unit;
                 }
+                this.logger.debug(`Publishing sensor: nodeId="${this.nodeId}", deviceId="${deviceId}", sensor="${slug}", topic="${sensorTopic}"`);
+                this.logger.info(`Publishing individual sensor state: ${sensorTopic}`);
+                this.mqttClient.publish(sensorTopic, JSON.stringify(sensorPayload), { retain: false }, (error) => {
+                    if (error) {
+                        this.logger.error(`Failed to publish sensor ${slug} for ${deviceId}:`, error);
+                    }
+                    else {
+                        // Clear dirty flag after successful publish
+                        dp.dirty = false;
+                    }
+                });
+                publishedSensors++;
             }
-            const statusTopic = `${this.haPrefix}/${deviceId}/state`;
-            this.mqttClient.publish(statusTopic, JSON.stringify(statusPayload), { retain: false }, (error) => {
-                if (error) {
-                    this.logger.error(`Failed to publish status for ${deviceId}:`, error);
-                }
-                else {
-                    this.logger.debug(`Published status for ${deviceId}`);
-                    this.lastStatusPublish[deviceId] = now;
-                }
-            });
+            if (publishedSensors > 0) {
+                this.logger.info(`Published ${publishedSensors} sensors for nodeId="${this.nodeId}", deviceId="${deviceId}"`);
+            }
         }
     }
     // Helper method to clear discovery cache (useful for testing)
