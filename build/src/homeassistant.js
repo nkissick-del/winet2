@@ -43,7 +43,7 @@ class MqttPublisher {
                     unique_id: sensorId,
                     name: `${dp.name} (${this.nodeId})`,
                     state_topic: `${this.haPrefix}/${this.nodeId}_${deviceId}/${slug}/state`,
-                    value_template: '{{ value_json.value }}',
+                    value_template: '{{ value_json.value | default(value) | float(0) }}',
                     device: deviceConfig,
                 };
                 // Add unit of measurement if available
