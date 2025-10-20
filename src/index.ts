@@ -61,7 +61,8 @@ interface Options {
   ssl: boolean;
   ha_prefix: string;
   winet_names?: string[];
-  modbus_ips?: string[];  // Modbus TCP IPs for each inverter (optional)
+  modbus_ips?: string[]; // Modbus TCP IPs for each inverter (optional)
+  inverter_type?: 'STRING' | 'HYBRID';
 }
 
 let options: Options = {
@@ -77,6 +78,7 @@ let options: Options = {
   ssl: false,
   ha_prefix: 'homeassistant/sensor',
   modbus_ips: [],
+  inverter_type: undefined,
 };
 
 // Optimized configuration loading with reduced redundancy
@@ -96,6 +98,23 @@ if (fs.existsSync('/data/options.json')) {
     return val && val.length > 0 ? val : undefined;
   };
 
+  const getEnumEnvVar = <T extends string>(
+    key: string,
+    allowed: readonly T[],
+  ): T | undefined => {
+    const raw = process.env[key];
+    if (!raw) return undefined;
+    const value = raw.trim().toUpperCase();
+    if (value.length === 0) return undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((allowed as ReadonlyArray<any>).includes(value)) {
+      return value as T;
+    }
+    throw new Error(
+      `Invalid ${key} value '${raw}'. Expected one of: ${allowed.join(', ')}`,
+    );
+  };
+
   // Parse comma-separated values once and reuse
   const parseCommaSeparated = (val: string) =>
     val
@@ -105,9 +124,7 @@ if (fs.existsSync('/data/options.json')) {
 
   // Parse comma-separated values preserving empty entries (for optional per-inverter config)
   const parseCommaSeparatedWithEmpties = (val: string) =>
-    val
-      .split(',')
-      .map(x => x.trim());
+    val.split(',').map(x => x.trim());
 
   const hostsEnv = getEnvVar('WINET_HOSTS') || getEnvVar('WINET_HOST');
 
@@ -126,6 +143,10 @@ if (fs.existsSync('/data/options.json')) {
     ha_prefix: getEnvVar('HA_PREFIX', 'homeassistant/sensor'),
     winet_names: parseCommaSeparated(getEnvVar('WINET_NAMES')),
     modbus_ips: parseCommaSeparatedWithEmpties(getEnvVar('MODBUS_IPS')),
+    inverter_type: getEnumEnvVar<'STRING' | 'HYBRID'>('INVERTER_TYPE', [
+      'STRING',
+      'HYBRID',
+    ]),
   });
 }
 
@@ -212,11 +233,13 @@ hosts.forEach((hostRaw: string, index: number) => {
     '', // Empty devicePrefix - using device serial numbers as identifiers
     inverterId, // Pass inverterId as nodeId to separate devices in HA
   );
-  
-  // Get Modbus IP for this inverter if configured
+
+  // Get Modbus IP for this inverter (if configured)
   const modbusIp = options.modbus_ips?.[index];
-  log.info(`[${inverterId}] Modbus configuration: index=${index}, IP="${modbusIp}"`);
-  
+  if (modbusIp) {
+    log.info(`[${inverterId}] Modbus enabled: ${modbusIp}`);
+  }
+
   const winet = new winetHandler(
     log,
     host,
@@ -226,6 +249,7 @@ hosts.forEach((hostRaw: string, index: number) => {
     options.winet_pass,
     new Analytics(options.analytics),
     modbusIp, // Pass Modbus IP (undefined if not configured)
+    options.inverter_type,
   );
 
   // Use Set for O(1) lookups instead of Array.includes() which is O(n)

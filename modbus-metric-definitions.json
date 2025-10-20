@@ -1,0 +1,420 @@
+{
+  "version": 1,
+  "metrics": [
+    {
+      "id": "battery_capacity",
+      "name": "Battery Capacity",
+      "unit": "kWh",
+      "category": "energy",
+      "default": {
+        "register": 13039
+      },
+      "models": {
+        "HYBRID": {
+          "register": 13039
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 1,
+        "type": "uint16",
+        "scale": 0.1
+      },
+      "discovery": {
+        "method": "energy"
+      }
+    },
+    {
+      "id": "daily_output_energy",
+      "name": "Daily Output Energy",
+      "unit": "kWh",
+      "category": "energy",
+      "models": {
+        "HYBRID": {
+          "register": 5003
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 1,
+        "type": "uint16",
+        "scale": 0.1
+      },
+      "discovery": {
+        "method": "energy"
+      }
+    },
+    {
+      "id": "daily_power_yields",
+      "name": "Daily power yields",
+      "unit": "kWh",
+      "category": "energy",
+      "default": {
+        "register": 5003
+      },
+      "models": {
+        "SG50RS": {
+          "register": 5003
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 1,
+        "type": "uint16",
+        "scale": 0.1
+      },
+      "discovery": {
+        "method": "energy"
+      }
+    },
+    {
+      "id": "drm_state",
+      "name": "DRM State",
+      "unit": null,
+      "category": null,
+      "default": {
+        "register": 13043
+      },
+      "models": {
+        "HYBRID": {
+          "register": 13043
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 1,
+        "type": "uint16",
+        "scale": 1.0
+      }
+    },
+    {
+      "id": "grid_export_energy",
+      "name": "Grid Export Energy",
+      "unit": "kWh",
+      "category": "energy",
+      "default": {
+        "register": 5094
+      },
+      "models": {
+        "SG50RS": {
+          "register": 5094
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 2,
+        "type": "uint32le",
+        "scale": 0.1
+      },
+      "discovery": {
+        "method": "energy",
+        "prompt": "Reverse Active Energy (MWh) [press Enter to skip]: ",
+        "input_unit": "MWh",
+        "tolerance": {
+          "absolute_kwh": 2,
+          "relative": 0.01
+        }
+      }
+    },
+    {
+      "id": "grid_import_energy",
+      "name": "Grid Import Energy",
+      "unit": "kWh",
+      "category": "energy",
+      "default": {
+        "register": 5098
+      },
+      "models": {
+        "SG50RS": {
+          "register": 5098
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 2,
+        "type": "uint32le",
+        "scale": 0.1
+      },
+      "discovery": {
+        "method": "energy",
+        "prompt": "Forward Active Energy (MWh) [press Enter to skip]: ",
+        "input_unit": "MWh",
+        "tolerance": {
+          "absolute_kwh": 2,
+          "relative": 0.01
+        }
+      }
+    },
+    {
+      "id": "internal_temperature",
+      "name": "Internal temperature",
+      "unit": "\u2103",
+      "category": "temperature",
+      "default": {
+        "register": 5008
+      },
+      "models": {
+        "SG50RS": {
+          "register": 5008
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 1,
+        "type": "int16",
+        "scale": 0.1
+      }
+    },
+    {
+      "id": "meter_power",
+      "name": "Meter Power",
+      "unit": "W",
+      "category": "power",
+      "default": {
+        "register": 5600
+      },
+      "models": {
+        "SG50RS": {
+          "register": 5600
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 1,
+        "type": "int16",
+        "scale": 1
+      },
+      "discovery": {
+        "method": "power",
+        "prompt": "Meter Active Power (kW) [press Enter to skip]: ",
+        "input_unit": "kW",
+        "expected_range": {
+          "min": -20000,
+          "max": 20000
+        },
+        "tolerance_watts": 1500
+      }
+    },
+    {
+      "id": "mppt_1_current",
+      "name": "MPPT 1 Current",
+      "unit": "A",
+      "category": "current",
+      "default": {
+        "register": 5012
+      },
+      "models": {
+        "HYBRID": {
+          "register": 5012
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 1,
+        "type": "uint16",
+        "scale": 0.1
+      },
+      "discovery": {
+        "method": "current"
+      }
+    },
+    {
+      "id": "mppt_1_voltage",
+      "name": "MPPT 1 Voltage",
+      "unit": "V",
+      "category": "voltage",
+      "default": {
+        "register": 5011
+      },
+      "models": {
+        "HYBRID": {
+          "register": 5011
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 1,
+        "type": "uint16",
+        "scale": 0.1
+      },
+      "discovery": {
+        "method": "voltage"
+      }
+    },
+    {
+      "id": "mppt_3_current",
+      "name": "MPPT 3 Current",
+      "unit": "A",
+      "category": "current",
+      "default": {
+        "register": 5016
+      },
+      "models": {
+        "HYBRID": {
+          "register": 5016
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 1,
+        "type": "uint16",
+        "scale": 0.1
+      },
+      "discovery": {
+        "method": "current"
+      }
+    },
+    {
+      "id": "mppt_3_voltage",
+      "name": "MPPT 3 Voltage",
+      "unit": "V",
+      "category": "voltage",
+      "default": {
+        "register": 5015
+      },
+      "models": {
+        "HYBRID": {
+          "register": 5015
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 1,
+        "type": "uint16",
+        "scale": 0.1
+      },
+      "discovery": {
+        "method": "voltage"
+      }
+    },
+    {
+      "id": "nominal_active_power",
+      "name": "Nominal active power",
+      "unit": "kW",
+      "category": "power",
+      "default": {
+        "register": 5001
+      },
+      "models": {
+        "SG50RS": {
+          "register": 5001
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 1,
+        "type": "uint16",
+        "scale": 0.1
+      },
+      "discovery": {
+        "method": "power"
+      }
+    },
+    {
+      "id": "power_limitation_setting",
+      "name": "Power limitation setting",
+      "unit": "%",
+      "category": "percentage",
+      "default": {
+        "register": 5008
+      },
+      "models": {
+        "SG50RS": {
+          "register": 5008
+        }
+      },
+      "read": {
+        "function": "holding",
+        "words": 1,
+        "type": "uint16",
+        "scale": 0.1
+      }
+    },
+    {
+      "id": "total_apparent_power",
+      "name": "Total apparent power",
+      "unit": "VA",
+      "category": null,
+      "default": {
+        "register": 5009
+      },
+      "models": {
+        "SG50RS": {
+          "register": 5009
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 2,
+        "type": "uint32",
+        "scale": 1.0
+      }
+    },
+    {
+      "id": "total_import_energy",
+      "name": "Total Import Energy",
+      "unit": "kWh",
+      "category": "energy",
+      "default": {
+        "register": 13037
+      },
+      "models": {
+        "HYBRID": {
+          "register": 13037
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 2,
+        "type": "uint32",
+        "scale": 0.1
+      },
+      "discovery": {
+        "method": "energy"
+      }
+    },
+    {
+      "id": "total_output_energy",
+      "name": "Total Output Energy",
+      "unit": "kWh",
+      "category": "energy",
+      "default": {
+        "register": 5004
+      },
+      "models": {
+        "HYBRID": {
+          "register": 5004
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 2,
+        "type": "uint32",
+        "scale": 0.1
+      },
+      "discovery": {
+        "method": "energy"
+      }
+    },
+    {
+      "id": "total_running_time",
+      "name": "Total running time",
+      "unit": "h",
+      "category": null,
+      "default": {
+        "register": 5006
+      },
+      "models": {
+        "SG50RS": {
+          "register": 5006
+        }
+      },
+      "read": {
+        "function": "input",
+        "words": 2,
+        "type": "uint32",
+        "scale": 1.0
+      }
+    }
+  ]
+}

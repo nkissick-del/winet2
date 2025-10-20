@@ -1,6 +1,10 @@
 import {z} from 'zod';
 import {DeviceSchema} from './types/MessageTypes';
-import {DeviceStatusMap} from './types/DeviceStatus';
+import {
+  DeviceStatusMap,
+  DeviceStatus,
+  DeviceDataPoint,
+} from './types/DeviceStatus';
 import {Properties} from './types/Properties';
 import * as winston from 'winston';
 import {Analytics} from './analytics';
@@ -10,6 +14,8 @@ import slugify from 'slugify';
 import {QueryStages, DeviceTypeStages, NumericUnits} from './types/Constants';
 import {ModbusReader} from './modbusReader';
 
+type DeviceRecord = z.infer<typeof DeviceSchema> & {dev_model_base?: string};
+
 export class winetHandler {
   private winetUser: string;
   private winetPass: string;
@@ -17,7 +23,7 @@ export class winetHandler {
   private currentDevice?: number;
   private inFlightDevice?: number;
   private currentStages: QueryStages[] = [];
-  private devices: z.infer<typeof DeviceSchema>[] = [];
+  private devices: DeviceRecord[] = [];
   private deviceStatus: DeviceStatusMap = {};
   private lastDeviceUpdate: {[key: string]: number} = {};
   private watchdogCount = 0;
@@ -40,6 +46,7 @@ export class winetHandler {
   private ws?: WebSocket;
   private modbusReader?: ModbusReader;
   private modbusEnabled = false;
+  private inverterType?: 'STRING' | 'HYBRID';
 
   constructor(
     logger: winston.Logger,
@@ -50,6 +57,7 @@ export class winetHandler {
     winetPass?: string,
     analytics?: Analytics,
     modbusIp?: string,
+    inverterType?: string,
   ) {
     this.winetUser = winetUser || 'admin';
     this.winetPass = winetPass || 'pw8888';
@@ -59,11 +67,25 @@ export class winetHandler {
     this.lang = lang;
     this.frequency = frequency;
     this.analytics = analytics;
-    
+    this.inverterType =
+      inverterType &&
+      (inverterType.toUpperCase() === 'STRING' ||
+        inverterType.toUpperCase() === 'HYBRID')
+        ? (inverterType.toUpperCase() as 'STRING' | 'HYBRID')
+        : undefined;
+
     // Initialize Modbus reader if IP is provided
     if (modbusIp && modbusIp.trim().length > 0) {
       this.logger.info(`🔌 Modbus enabled for ${modbusIp}`);
-      this.modbusReader = new ModbusReader(modbusIp);
+      this.modbusReader = new ModbusReader(modbusIp, {
+        inverterType: this.inverterType,
+      });
+      const baseLogger = this.logger as winston.Logger;
+      const healthLogger =
+        typeof baseLogger.child === 'function'
+          ? baseLogger.child({component: 'modbus-health', modbusIp})
+          : baseLogger;
+      this.modbusReader.enableHealthCheck(healthLogger, 10 * 60 * 1000);
       this.modbusEnabled = true;
     }
   }
@@ -120,7 +142,7 @@ export class winetHandler {
     this.watchdogLastData = Date.now();
     this.setWatchdog();
 
-    const wsOptions = this.ssl ? this.sslConfig.getSSLOptions(this.host) : {};
+    const wsOptions = this.ssl ? this.sslConfig.getSSLOptions() : {};
 
     this.ws = new WebSocket(
       this.ssl
@@ -147,12 +169,15 @@ export class winetHandler {
     setTimeout(
       () => {
         this.connect();
+        if (this.modbusReader) {
+          this.modbusReader.setInverterType(this.inverterType);
+        }
       },
       this.frequency * 1000 * 3,
     );
   }
 
-  private sendPacket(data: any): void {
+  private sendPacket(data: Record<string, unknown>): void {
     const packet = Object.assign({lang: this.lang, token: this.token}, data);
 
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -313,6 +338,7 @@ export class winetHandler {
           const alphanumericRegex = /[^a-zA-Z0-9]/g;
 
           for (const device of deviceListData.list) {
+            const deviceRecord = device as DeviceRecord;
             const deviceStages = DeviceTypeStages.get(device.dev_type) || [];
             if (deviceStages.length === 0) {
               this.logger.info(
@@ -324,12 +350,22 @@ export class winetHandler {
             }
 
             if (!existingDeviceSerials.has(device.dev_sn)) {
-              this.deviceStatus[device.dev_id] = {} as any;
-              device.dev_model = device.dev_model.replace(
+              const deviceKey = String(device.dev_id);
+              this.deviceStatus[deviceKey] = {};
+              const sanitizedModel = device.dev_model.replace(
                 alphanumericRegex,
                 '',
               );
-              device.dev_sn = device.dev_sn.replace(alphanumericRegex, '');
+              const sanitizedSerial = device.dev_sn.replace(
+                alphanumericRegex,
+                '',
+              );
+              const baseModel = sanitizedSerial
+                ? sanitizedModel.replace(new RegExp(`${sanitizedSerial}$`), '')
+                : sanitizedModel;
+              deviceRecord.dev_model_base = baseModel || sanitizedModel;
+              device.dev_model = sanitizedModel;
+              device.dev_sn = sanitizedSerial;
 
               const stageNames = deviceStages
                 .map(s => QueryStages[s])
@@ -338,17 +374,31 @@ export class winetHandler {
                 `Detected device: ${device.dev_model} (${device.dev_sn}) - Type: ${device.dev_type}, Stages: ${stageNames}`,
               );
 
-              this.devices.push(device);
+              this.devices.push(deviceRecord);
               existingDeviceSerials.add(device.dev_sn);
             }
           }
 
           this.analytics?.registerDevices(this.devices);
 
+          if (
+            this.modbusEnabled &&
+            this.modbusReader &&
+            this.devices.length > 0
+          ) {
+            const primaryDevice = this.devices[0];
+            const modelId =
+              primaryDevice.dev_model_base ?? primaryDevice.dev_model;
+            if (modelId) {
+              this.logger.info(`Applying Modbus model mapping for ${modelId}`);
+              this.modbusReader.setModel(modelId);
+            }
+          }
+
           // Start continuous device scanning
-          this.scanDevices();
+          void this.scanDevices();
           this.scanInterval = setInterval(() => {
-            this.scanDevices();
+            void this.scanDevices();
           }, this.frequency * 1000);
 
           this.logger.info(
@@ -383,14 +433,19 @@ export class winetHandler {
 
           const slugifyOptions = {lower: true, strict: true, replacement: '_'};
 
-          // Log all data names for meter-connected inverter (A22C1208343)
+          // Log all data names for meter-connected inverter (SG50RS_SERIAL_2)
           const device = this.devices.find(d => d.dev_id === receivedDevice);
-          if (device?.dev_sn === 'A22C1208343') {
-            this.logger.info(`[METER DEBUG] Received ${realtimeResult.data.list.length} datapoints for ${device.dev_sn}`);
-            const dataNames = realtimeResult.data.list.map((d: {data_name: string; data_unit: string}) => 
-              `${this.properties?.[d.data_name] || d.data_name} (${d.data_unit})`
+          if (device?.dev_sn === 'SG50RS_SERIAL_2') {
+            this.logger.info(
+              `[METER DEBUG] Received ${realtimeResult.data.list.length} datapoints for ${device.dev_sn}`,
             );
-            this.logger.info(`[METER DEBUG] Data names: ${dataNames.join(', ')}`);
+            const dataNames = realtimeResult.data.list.map(
+              (d: {data_name: string; data_unit: string}) =>
+                `${this.properties?.[d.data_name] || d.data_name} (${d.data_unit})`,
+            );
+            this.logger.info(
+              `[METER DEBUG] Data names: ${dataNames.join(', ')}`,
+            );
           }
 
           for (const data of realtimeResult.data.list) {
@@ -408,7 +463,7 @@ export class winetHandler {
                 : data.data_value;
             }
 
-            const dataPoint = {
+            const dataPoint: DeviceDataPoint = {
               name,
               slug: slugify(name, slugifyOptions),
               value,
@@ -417,14 +472,19 @@ export class winetHandler {
             };
 
             // Log meter-related datapoints
-            if (device?.dev_sn === 'A22C1208343' && name.toLowerCase().includes('meter')) {
-              this.logger.info(`[METER DEBUG] ${name} = ${value} ${data.data_unit}`);
+            if (
+              device?.dev_sn === 'SG50RS_SERIAL_2' &&
+              name.toLowerCase().includes('meter')
+            ) {
+              this.logger.info(
+                `[METER DEBUG] ${name} = ${value} ${data.data_unit}`,
+              );
             }
 
             this.updateDeviceStatus(receivedDevice!, dataPoint);
           }
 
-          this.scanDevices();
+          void this.scanDevices();
           break;
         }
 
@@ -517,7 +577,7 @@ export class winetHandler {
           };
 
           this.updateDeviceStatus(receivedDevice!, dataPointTotalW);
-          this.scanDevices();
+          void this.scanDevices();
           break;
         }
 
@@ -551,14 +611,19 @@ export class winetHandler {
     }
   }
 
-  private updateDeviceStatus(device: number, dataPoint: any): void {
-    const combinedName = `${device}_${dataPoint.slug}`;
-    const deviceStats = this.deviceStatus[device] as any;
-    const oldDataPoint = deviceStats?.[dataPoint.slug];
+  private updateDeviceStatus(
+    deviceId: number,
+    dataPoint: DeviceDataPoint,
+  ): void {
+    const deviceKey = String(deviceId);
+    const combinedName = `${deviceKey}_${dataPoint.slug}`;
+    const deviceStats: DeviceStatus =
+      this.deviceStatus[deviceKey] ?? (this.deviceStatus[deviceKey] = {});
+    const existing = deviceStats[dataPoint.slug];
 
     if (
-      oldDataPoint === undefined ||
-      oldDataPoint.value !== dataPoint.value ||
+      existing === undefined ||
+      existing.value !== dataPoint.value ||
       this.lastDeviceUpdate[combinedName] === undefined ||
       Date.now() - this.lastDeviceUpdate[combinedName] > 300000
     ) {
@@ -579,15 +644,13 @@ export class winetHandler {
     try {
       this.logger.info('🔄 Reading Modbus meter data...');
       const meterData = await this.modbusReader.readMeterData();
-      
+
       this.logger.info(
-        `📊 Modbus meter data READ: ${meterData.power}W, ` +
-        `Import: ${meterData.importEnergy.toFixed(1)}kWh, ` +
-        `Export: ${meterData.exportEnergy.toFixed(1)}kWh`
+        `📊 Modbus meter data: ${meterData.power}W, ` +
+          `Import: ${meterData.importEnergy.toFixed(1)}kWh, ` +
+          `Export: ${meterData.exportEnergy.toFixed(1)}kWh`,
       );
 
-      // Find the first device (assuming meter is connected to first inverter)
-      // In future, could make this configurable
       const firstDevice = this.devices[0];
       if (!firstDevice) {
         this.logger.warn('No devices found for Modbus meter data');
@@ -595,13 +658,10 @@ export class winetHandler {
       }
 
       const deviceId = firstDevice.dev_id.toString();
-      if (!this.deviceStatus[deviceId]) {
-        this.deviceStatus[deviceId] = {} as any;
-      }
+      const deviceStats: DeviceStatus =
+        this.deviceStatus[deviceId] ?? (this.deviceStatus[deviceId] = {});
 
-      const deviceStats = this.deviceStatus[deviceId] as Record<string, any>;
-
-      // Add meter power
+      // Add meter sensors with dirty flag to ensure MQTT publishing
       deviceStats['meter_power'] = {
         title: 'Meter Power',
         name: 'meter_power',
@@ -611,7 +671,6 @@ export class winetHandler {
         dirty: true,
       };
 
-      // Add grid import energy
       deviceStats['grid_import_energy'] = {
         title: 'Grid Import Energy',
         name: 'grid_import_energy',
@@ -621,7 +680,6 @@ export class winetHandler {
         dirty: true,
       };
 
-      // Add grid export energy
       deviceStats['grid_export_energy'] = {
         title: 'Grid Export Energy',
         name: 'grid_export_energy',
@@ -631,14 +689,7 @@ export class winetHandler {
         dirty: true,
       };
 
-      // Mark these sensors as recently updated to bypass cache
-      const now = Date.now();
-      this.lastDeviceUpdate[`${deviceId}_meter_power`] = now;
-      this.lastDeviceUpdate[`${deviceId}_grid_import_energy`] = now;
-      this.lastDeviceUpdate[`${deviceId}_grid_export_energy`] = now;
-
       this.logger.info(`✅ Added 3 Modbus sensors to device ${deviceId}`);
-
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to read Modbus meter data: ${errorMsg}`);
@@ -678,19 +729,19 @@ export class winetHandler {
 
         // Calculate total data points for logging
         const totalDataPoints = Object.values(this.deviceStatus).reduce(
-          (count, deviceData) => count + Object.keys(deviceData as any).length,
+          (count, deviceData) => count + Object.keys(deviceData).length,
           0,
         );
 
         this.logger.debug(
           `Completed scan cycle - ${this.devices.length} devices, ${totalDataPoints} data points`,
         );
-        
+
         // Augment with Modbus meter data if enabled
         if (this.modbusEnabled) {
           await this.addModbusMeterData();
         }
-        
+
         this.callbackUpdatedStatus?.(this.devices, this.deviceStatus);
         return;
       }

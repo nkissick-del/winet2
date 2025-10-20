@@ -37,6 +37,10 @@ RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 # Copy built application from builder stage
 COPY --from=builder /app/build/ ./build/
 
+# Copy runtime data files
+COPY modbus-metric-definitions.json modbus-registers.json ./
+COPY tools/modbus-discovery/modbus-register-defaults.json tools/modbus-discovery/
+
 # Copy additional files needed at runtime
 COPY analyze-certificates.js quick-ssl-check.sh run.sh ./
 RUN chmod +x quick-ssl-check.sh run.sh

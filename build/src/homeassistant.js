@@ -18,10 +18,11 @@ class MqttPublisher {
     }
     publishDiscovery(devices, deviceStatus) {
         for (const device of devices) {
-            const deviceStats = deviceStatus[device.dev_id];
-            if (!deviceStats)
+            const deviceStats = deviceStatus[String(device.dev_id)];
+            if (!deviceStats) {
                 continue;
-            const deviceId = `${device.dev_model}_${device.dev_sn}`; // Match winet2-mac format: SG50RS_A22C1208343
+            }
+            const deviceId = `${device.dev_model}_${device.dev_sn}`; // Match winet2-mac format: SG50RS_SG50RS_SERIAL_2
             // Create device discovery config
             const deviceConfig = {
                 identifiers: [device.dev_sn], // Use just the serial number as identifier
@@ -30,10 +31,7 @@ class MqttPublisher {
                 manufacturer: 'Sungrow',
                 serial_number: device.dev_sn,
             };
-            for (const [slug, dataPoint] of Object.entries(deviceStats)) {
-                if (!dataPoint || typeof dataPoint !== 'object')
-                    continue;
-                const dp = dataPoint;
+            for (const [slug, dp] of Object.entries(deviceStats)) {
                 const sensorId = `${deviceId}_${slug}`;
                 const discoveryKey = `${deviceId}_${slug}`;
                 // Skip if already published
@@ -108,25 +106,22 @@ class MqttPublisher {
     }
     publishStatus(devices, deviceStatus) {
         for (const device of devices) {
-            const deviceStats = deviceStatus[device.dev_id];
-            if (!deviceStats)
+            const deviceStats = deviceStatus[String(device.dev_id)];
+            if (!deviceStats) {
                 continue;
-            const deviceId = `${device.dev_model}_${device.dev_sn}`; // Match winet2-mac format: SG50RS_A22C1208343
+            }
+            const deviceId = `${device.dev_model}_${device.dev_sn}`; // Match winet2-mac format: SG50RS_SG50RS_SERIAL_2
             // Publish individual sensor data to separate topics (like winet2-mac)
             let publishedSensors = 0;
-            for (const [slug, dataPoint] of Object.entries(deviceStats)) {
-                if (!dataPoint || typeof dataPoint !== 'object')
+            for (const [slug, dp] of Object.entries(deviceStats)) {
+                if (!dp.dirty) {
                     continue;
-                const dp = dataPoint;
-                // Only publish if data has changed (dirty flag)
-                if (!dp.dirty)
-                    continue;
+                }
                 const sensorTopic = `${this.haPrefix}/${this.nodeId}_${deviceId}/${slug}/state`;
                 // Simple payload like winet2-mac (not complex nested JSON)
                 const sensorPayload = {
                     value: dp.value,
                 };
-                // Add unit if available (like winet2-mac)
                 if (dp.unit && dp.unit !== '') {
                     sensorPayload.unit_of_measurement = dp.unit;
                 }

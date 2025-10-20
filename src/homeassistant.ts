@@ -1,7 +1,22 @@
 import {z} from 'zod';
 import {DeviceSchema} from './types/MessageTypes';
-import {DeviceStatusMap} from './types/DeviceStatus';
+import {DeviceStatusMap, DeviceDataPoint} from './types/DeviceStatus';
 import * as winston from 'winston';
+
+interface MqttPublishOptions {
+  retain?: boolean;
+  qos?: number;
+  dup?: boolean;
+}
+
+interface MqttClient {
+  publish(
+    topic: string,
+    payload: string,
+    options: MqttPublishOptions,
+    callback: (error?: Error) => void,
+  ): void;
+}
 
 interface HaSensorConfig {
   unique_id: string;
@@ -22,7 +37,7 @@ interface HaSensorConfig {
 
 export class MqttPublisher {
   private logger: winston.Logger;
-  private mqttClient: any;
+  private mqttClient: MqttClient;
   private haPrefix: string;
   private devicePrefix: string;
   private nodeId: string; // Add nodeId to identify this inverter instance
@@ -31,7 +46,7 @@ export class MqttPublisher {
 
   constructor(
     logger: winston.Logger,
-    mqttClient: any,
+    mqttClient: MqttClient,
     haPrefix: string,
     devicePrefix: string,
     nodeId: string, // Add nodeId parameter
@@ -48,10 +63,12 @@ export class MqttPublisher {
     deviceStatus: DeviceStatusMap,
   ): void {
     for (const device of devices) {
-      const deviceStats = deviceStatus[device.dev_id] as any;
-      if (!deviceStats) continue;
+      const deviceStats = deviceStatus[String(device.dev_id)];
+      if (!deviceStats) {
+        continue;
+      }
 
-      const deviceId = `${device.dev_model}_${device.dev_sn}`; // Match winet2-mac format: SG50RS_A22C1208343
+      const deviceId = `${device.dev_model}_${device.dev_sn}`; // Match winet2-mac format: SG50RS_SG50RS_SERIAL_2
 
       // Create device discovery config
       const deviceConfig = {
@@ -62,10 +79,7 @@ export class MqttPublisher {
         serial_number: device.dev_sn,
       };
 
-      for (const [slug, dataPoint] of Object.entries(deviceStats)) {
-        if (!dataPoint || typeof dataPoint !== 'object') continue;
-
-        const dp = dataPoint as any;
+      for (const [slug, dp] of Object.entries(deviceStats)) {
         const sensorId = `${deviceId}_${slug}`;
         const discoveryKey = `${deviceId}_${slug}`;
 
@@ -138,7 +152,7 @@ export class MqttPublisher {
           discoveryTopic,
           JSON.stringify(sensorConfig),
           {retain: true},
-          (error: Error) => {
+          (error?: Error) => {
             if (error) {
               this.logger.error(
                 `Failed to publish discovery for ${sensorId}:`,
@@ -159,29 +173,30 @@ export class MqttPublisher {
     deviceStatus: DeviceStatusMap,
   ): void {
     for (const device of devices) {
-      const deviceStats = deviceStatus[device.dev_id] as any;
-      if (!deviceStats) continue;
+      const deviceStats = deviceStatus[String(device.dev_id)];
+      if (!deviceStats) {
+        continue;
+      }
 
-      const deviceId = `${device.dev_model}_${device.dev_sn}`; // Match winet2-mac format: SG50RS_A22C1208343
+      const deviceId = `${device.dev_model}_${device.dev_sn}`; // Match winet2-mac format: SG50RS_SG50RS_SERIAL_2
 
       // Publish individual sensor data to separate topics (like winet2-mac)
       let publishedSensors = 0;
-      for (const [slug, dataPoint] of Object.entries(deviceStats)) {
-        if (!dataPoint || typeof dataPoint !== 'object') continue;
-
-        const dp = dataPoint as any;
-
-        // Only publish if data has changed (dirty flag)
-        if (!dp.dirty) continue;
+      for (const [slug, dp] of Object.entries(deviceStats)) {
+        if (!dp.dirty) {
+          continue;
+        }
 
         const sensorTopic = `${this.haPrefix}/${this.nodeId}_${deviceId}/${slug}/state`;
 
         // Simple payload like winet2-mac (not complex nested JSON)
-        const sensorPayload: any = {
+        const sensorPayload: {
+          value: DeviceDataPoint['value'];
+          unit_of_measurement?: string;
+        } = {
           value: dp.value,
         };
 
-        // Add unit if available (like winet2-mac)
         if (dp.unit && dp.unit !== '') {
           sensorPayload.unit_of_measurement = dp.unit;
         }
@@ -195,7 +210,7 @@ export class MqttPublisher {
           sensorTopic,
           JSON.stringify(sensorPayload),
           {retain: false},
-          (error: Error) => {
+          (error?: Error) => {
             if (error) {
               this.logger.error(
                 `Failed to publish sensor ${slug} for ${deviceId}:`,

@@ -36,7 +36,8 @@ class winetHandler {
     ws;
     modbusReader;
     modbusEnabled = false;
-    constructor(logger, host, lang, frequency, winetUser, winetPass, analytics, modbusIp) {
+    inverterType;
+    constructor(logger, host, lang, frequency, winetUser, winetPass, analytics, modbusIp, inverterType) {
         this.winetUser = winetUser || 'admin';
         this.winetPass = winetPass || 'pw8888';
         this.logger = logger;
@@ -45,10 +46,23 @@ class winetHandler {
         this.lang = lang;
         this.frequency = frequency;
         this.analytics = analytics;
+        this.inverterType =
+            inverterType &&
+                (inverterType.toUpperCase() === 'STRING' ||
+                    inverterType.toUpperCase() === 'HYBRID')
+                ? inverterType.toUpperCase()
+                : undefined;
         // Initialize Modbus reader if IP is provided
         if (modbusIp && modbusIp.trim().length > 0) {
             this.logger.info(`🔌 Modbus enabled for ${modbusIp}`);
-            this.modbusReader = new modbusReader_1.ModbusReader(modbusIp);
+            this.modbusReader = new modbusReader_1.ModbusReader(modbusIp, {
+                inverterType: this.inverterType,
+            });
+            const baseLogger = this.logger;
+            const healthLogger = typeof baseLogger.child === 'function'
+                ? baseLogger.child({ component: 'modbus-health', modbusIp })
+                : baseLogger;
+            this.modbusReader.enableHealthCheck(healthLogger, 10 * 60 * 1000);
             this.modbusEnabled = true;
         }
     }
@@ -90,7 +104,7 @@ class winetHandler {
         }
         this.watchdogLastData = Date.now();
         this.setWatchdog();
-        const wsOptions = this.ssl ? this.sslConfig.getSSLOptions(this.host) : {};
+        const wsOptions = this.ssl ? this.sslConfig.getSSLOptions() : {};
         this.ws = new ws_1.default(this.ssl
             ? `wss://${this.host}:443/ws/home/overview`
             : `ws://${this.host}:8082/ws/home/overview`, wsOptions);
@@ -107,6 +121,9 @@ class winetHandler {
         this.clearWatchdog();
         setTimeout(() => {
             this.connect();
+            if (this.modbusReader) {
+                this.modbusReader.setInverterType(this.inverterType);
+            }
         }, this.frequency * 1000 * 3);
     }
     sendPacket(data) {
@@ -231,28 +248,46 @@ class winetHandler {
                     const existingDeviceSerials = new Set(this.devices.map(d => d.dev_sn));
                     const alphanumericRegex = /[^a-zA-Z0-9]/g;
                     for (const device of deviceListData.list) {
+                        const deviceRecord = device;
                         const deviceStages = Constants_1.DeviceTypeStages.get(device.dev_type) || [];
                         if (deviceStages.length === 0) {
                             this.logger.info('Skipping device:', device.dev_name, device.dev_sn);
                             continue;
                         }
                         if (!existingDeviceSerials.has(device.dev_sn)) {
-                            this.deviceStatus[device.dev_id] = {};
-                            device.dev_model = device.dev_model.replace(alphanumericRegex, '');
-                            device.dev_sn = device.dev_sn.replace(alphanumericRegex, '');
+                            const deviceKey = String(device.dev_id);
+                            this.deviceStatus[deviceKey] = {};
+                            const sanitizedModel = device.dev_model.replace(alphanumericRegex, '');
+                            const sanitizedSerial = device.dev_sn.replace(alphanumericRegex, '');
+                            const baseModel = sanitizedSerial
+                                ? sanitizedModel.replace(new RegExp(`${sanitizedSerial}$`), '')
+                                : sanitizedModel;
+                            deviceRecord.dev_model_base = baseModel || sanitizedModel;
+                            device.dev_model = sanitizedModel;
+                            device.dev_sn = sanitizedSerial;
                             const stageNames = deviceStages
                                 .map(s => Constants_1.QueryStages[s])
                                 .join(', ');
                             this.logger.info(`Detected device: ${device.dev_model} (${device.dev_sn}) - Type: ${device.dev_type}, Stages: ${stageNames}`);
-                            this.devices.push(device);
+                            this.devices.push(deviceRecord);
                             existingDeviceSerials.add(device.dev_sn);
                         }
                     }
                     this.analytics?.registerDevices(this.devices);
+                    if (this.modbusEnabled &&
+                        this.modbusReader &&
+                        this.devices.length > 0) {
+                        const primaryDevice = this.devices[0];
+                        const modelId = primaryDevice.dev_model_base ?? primaryDevice.dev_model;
+                        if (modelId) {
+                            this.logger.info(`Applying Modbus model mapping for ${modelId}`);
+                            this.modbusReader.setModel(modelId);
+                        }
+                    }
                     // Start continuous device scanning
-                    this.scanDevices();
+                    void this.scanDevices();
                     this.scanInterval = setInterval(() => {
-                        this.scanDevices();
+                        void this.scanDevices();
                     }, this.frequency * 1000);
                     this.logger.info(`Started continuous scanning with ${this.frequency}s interval`);
                     break;
@@ -274,9 +309,9 @@ class winetHandler {
                         return;
                     }
                     const slugifyOptions = { lower: true, strict: true, replacement: '_' };
-                    // Log all data names for meter-connected inverter (A22C1208343)
+                    // Log all data names for meter-connected inverter (SG50RS_SERIAL_2)
                     const device = this.devices.find(d => d.dev_id === receivedDevice);
-                    if (device?.dev_sn === 'A22C1208343') {
+                    if (device?.dev_sn === 'SG50RS_SERIAL_2') {
                         this.logger.info(`[METER DEBUG] Received ${realtimeResult.data.list.length} datapoints for ${device.dev_sn}`);
                         const dataNames = realtimeResult.data.list.map((d) => `${this.properties?.[d.data_name] || d.data_name} (${d.data_unit})`);
                         this.logger.info(`[METER DEBUG] Data names: ${dataNames.join(', ')}`);
@@ -303,12 +338,13 @@ class winetHandler {
                             dirty: true,
                         };
                         // Log meter-related datapoints
-                        if (device?.dev_sn === 'A22C1208343' && name.toLowerCase().includes('meter')) {
+                        if (device?.dev_sn === 'SG50RS_SERIAL_2' &&
+                            name.toLowerCase().includes('meter')) {
                             this.logger.info(`[METER DEBUG] ${name} = ${value} ${data.data_unit}`);
                         }
                         this.updateDeviceStatus(receivedDevice, dataPoint);
                     }
-                    this.scanDevices();
+                    void this.scanDevices();
                     break;
                 }
                 case 'direct': {
@@ -377,7 +413,7 @@ class winetHandler {
                         dirty: true,
                     };
                     this.updateDeviceStatus(receivedDevice, dataPointTotalW);
-                    this.scanDevices();
+                    void this.scanDevices();
                     break;
                 }
                 case 'notice': {
@@ -407,12 +443,13 @@ class winetHandler {
             this.analytics?.registerError('parseError', error.message);
         }
     }
-    updateDeviceStatus(device, dataPoint) {
-        const combinedName = `${device}_${dataPoint.slug}`;
-        const deviceStats = this.deviceStatus[device];
-        const oldDataPoint = deviceStats?.[dataPoint.slug];
-        if (oldDataPoint === undefined ||
-            oldDataPoint.value !== dataPoint.value ||
+    updateDeviceStatus(deviceId, dataPoint) {
+        const deviceKey = String(deviceId);
+        const combinedName = `${deviceKey}_${dataPoint.slug}`;
+        const deviceStats = this.deviceStatus[deviceKey] ?? (this.deviceStatus[deviceKey] = {});
+        const existing = deviceStats[dataPoint.slug];
+        if (existing === undefined ||
+            existing.value !== dataPoint.value ||
             this.lastDeviceUpdate[combinedName] === undefined ||
             Date.now() - this.lastDeviceUpdate[combinedName] > 300000) {
             deviceStats[dataPoint.slug] = dataPoint;
@@ -430,22 +467,17 @@ class winetHandler {
         try {
             this.logger.info('🔄 Reading Modbus meter data...');
             const meterData = await this.modbusReader.readMeterData();
-            this.logger.info(`📊 Modbus meter data READ: ${meterData.power}W, ` +
+            this.logger.info(`📊 Modbus meter data: ${meterData.power}W, ` +
                 `Import: ${meterData.importEnergy.toFixed(1)}kWh, ` +
                 `Export: ${meterData.exportEnergy.toFixed(1)}kWh`);
-            // Find the first device (assuming meter is connected to first inverter)
-            // In future, could make this configurable
             const firstDevice = this.devices[0];
             if (!firstDevice) {
                 this.logger.warn('No devices found for Modbus meter data');
                 return;
             }
             const deviceId = firstDevice.dev_id.toString();
-            if (!this.deviceStatus[deviceId]) {
-                this.deviceStatus[deviceId] = {};
-            }
-            const deviceStats = this.deviceStatus[deviceId];
-            // Add meter power
+            const deviceStats = this.deviceStatus[deviceId] ?? (this.deviceStatus[deviceId] = {});
+            // Add meter sensors with dirty flag to ensure MQTT publishing
             deviceStats['meter_power'] = {
                 title: 'Meter Power',
                 name: 'meter_power',
@@ -454,7 +486,6 @@ class winetHandler {
                 slug: 'meter_power',
                 dirty: true,
             };
-            // Add grid import energy
             deviceStats['grid_import_energy'] = {
                 title: 'Grid Import Energy',
                 name: 'grid_import_energy',
@@ -463,7 +494,6 @@ class winetHandler {
                 slug: 'grid_import_energy',
                 dirty: true,
             };
-            // Add grid export energy
             deviceStats['grid_export_energy'] = {
                 title: 'Grid Export Energy',
                 name: 'grid_export_energy',
@@ -472,11 +502,6 @@ class winetHandler {
                 slug: 'grid_export_energy',
                 dirty: true,
             };
-            // Mark these sensors as recently updated to bypass cache
-            const now = Date.now();
-            this.lastDeviceUpdate[`${deviceId}_meter_power`] = now;
-            this.lastDeviceUpdate[`${deviceId}_grid_import_energy`] = now;
-            this.lastDeviceUpdate[`${deviceId}_grid_export_energy`] = now;
             this.logger.info(`✅ Added 3 Modbus sensors to device ${deviceId}`);
         }
         catch (error) {

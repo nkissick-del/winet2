@@ -1,0 +1,95 @@
+no,name,address,data_type,data_range,unit,note,register_type,inverter_family,source_version,address_start,address_end,scale_factor
+1,Protocol num,4950-4951,U32,,,,3X,String,V1.1.66,4950,4951,1.0
+2,Protocol ver,4952-4953,U32,,,,3X,String,V1.1.66,4952,4953,1.0
+3,Arm software ver,4954-4968,U16,,,,3X,String,V1.1.66,4954,4968,1.0
+4,DSP software ver,4969-4983,U16,,,,3X,String,V1.1.66,4969,4983,1.0
+5,Reserved,4984-4989,U16,,,,3X,String,V1.1.66,4984,4989,1.0
+6,SN,4990-4999,UTF-8,,,Data type :UTF-8,3X,String,V1.1.66,4990,4999,1.0
+7,Device type code,5000,U16,,,See Appendix 5,3X,String,V1.1.66,5000,5000,1.0
+8,Nominal active power,5001,U16,,kW,,3X,String,V1.1.66,5001,5001,0.1
+9,Output type,5002,U16,0-two phase; 1-3P4L; 2-3P3L,,,3X,String,V1.1.66,5002,5002,1.0
+10,Daily power yields,5003,U16,,kWh,,3X,String,V1.1.66,5003,5003,0.1
+11,Total power yields,5004-5005,U32,,kWh,,3X,String,V1.1.66,5004,5005,1.0
+12,Total running time,5006-5007,U32,,h,,3X,String,V1.1.66,5006,5007,1.0
+13,Internal temperature,5008,S16,,°C,,3X,String,V1.1.66,5008,5008,0.1
+14,Total apparent power,5009-5010,U32,,VA,Valid for inverters: SG5KTL-MT SG6KTL-MT SG8KTL-M SG10KTL-M SG10KTL-MT SG12KTL-M SG15KTL-M SG17KTL-M SG20KTL-M RT Series SG33K3J SG36KTL-M SG40KTL-M SG50KTL SG50KTL-M SG60KTL SG60KTL-M SG60KU-M SG80KTL SG80KTL-M SG111HV SG125HV SG125HV-20 SG33CX SG40CX SG50CX SG110CX SG30CX SG36CX-US SG60CX-US SG49.5CX-JP SG25CX-SA SG100CX SG75CX SG225-350HX SG320HX-20 SG125CX-P2 SG110CX-P2 SG75CX- P2SG25/30/33/36/40/50CX-P2 SG150CX SG3.0/4.0/5.0/6.0/8.0/9.0/10RS-L SG15/20/25CX-P2-LV,3X,String,V1.1.66,5009,5010,1.0
+15,MPPT 1 voltage,5011,U16,,V,See Appendix 5,3X,String,V1.1.66,5011,5011,0.1
+16,MPPT 1 current,5012,U16,,A,,3X,String,V1.1.66,5012,5012,0.1
+17,MPPT 2 voltage,5013,U16,,V,,3X,String,V1.1.66,5013,5013,0.1
+18,MPPT 2 current,5014,U16,,A,,3X,String,V1.1.66,5014,5014,0.1
+19,MPPT 3 voltage,5015,U16,,V,,3X,String,V1.1.66,5015,5015,0.1
+20,MPPT 3 current,5016,U16,,A,,3X,String,V1.1.66,5016,5016,0.1
+21,Total DC power,5017-5018,U32,,W,,3X,String,V1.1.66,5017,5018,1.0
+22,A-B line voltage/phase A voltage,5019,U16,,V,Output type (address: 5002) is 1: upload phase voltage; 2: upload line voltage Except SG5.5RS-JP,3X,String,V1.1.66,5019,5019,0.1
+23,B-C line Voltage/phase B Voltage,5020,U16,,V,Output type (address: 5002) is 1: upload phase voltage; 2: upload line voltage Except SG5.5RS-JP,3X,String,V1.1.66,5020,5020,0.1
+24,C-A line Voltage/phase C Voltage,5021,U16,,V,Output type (address: 5002) is 1: upload phase voltage; 2: upload line voltage Except SG5.5RS-JP,3X,String,V1.1.66,5021,5021,0.1
+25,Phase A current,5022,U16,,A,Except SG5.5RS-JP,3X,String,V1.1.66,5022,5022,0.1
+26,Phase B current,5023,U16,,A,Except SG5.5RS-JP,3X,String,V1.1.66,5023,5023,0.1
+27,Phase C current,5024,U16,,A,Except SG5.5RS-JP,3X,String,V1.1.66,5024,5024,0.1
+28,Reserved,5025-5026,U32,,,,3X,String,V1.1.66,5025,5026,1.0
+29,Reserved,5027-5028,U32,,,,3X,String,V1.1.66,5027,5028,1.0
+30,Reserved,5029-5030,U32,,,,3X,String,V1.1.66,5029,5030,1.0
+31,Total active power,5031-5032,U32,,W,,3X,String,V1.1.66,5031,5032,1.0
+32,Total reactive power,5033-5034,S32,,var,,3X,String,V1.1.66,5033,5034,1.0
+33,Power factor,5035,S16,,0.001,>0 means leading <0 means lagging,3X,String,V1.1.66,5035,5035,1.0
+34,Grid frequency,5036,U16,,Hz,,3X,String,V1.1.66,5036,5036,0.1
+35,Reserved,5037,U16,,,,3X,String,V1.1.66,5037,5037,1.0
+36,Work state Fault/Alarm time: Year Fault/Alarm time: Month Fault/Alarm time: Day Fault/Alarm time: Hour Fault/Alarm time: Minute Fault/Alarm time: Second Fault/Alarm code 1 Reserved,5038-5048,U16,See Appendix 1 See Appendix 3,,"Data of address 5039 - 5045 are additional Fault/Alarm time and Fault/Alarm code (5039 - 5045) are valid only when the device work state is fault (0x5500) or alarm (0x9100). Except SG5.5RS-JP , SG0.7/1.0/1/5/2.0/2.5/3.0RS-S, SG3.0/3.6/4.0/5.0/6.0RS, SG5.0RS- ADA, SG8.0/9.0/10RS",3X,String,V1.1.66,5038,5048,1.0
+37,Nominal reactive power,5049,U16,,kvar,,3X,String,V1.1.66,5049,5049,0.1
+38,Reserved,5050-5070,U32,,,,3X,String,V1.1.66,5050,5070,1.0
+39,Array insulation resistance,5071,U16,1 - 20000(0xFFFF: invalid),kΩ,,3X,String,V1.1.66,5071,5071,1.0
+40,Reserved,5072,U16,,,,3X,String,V1.1.66,5072,5072,1.0
+42,Active Power Regulation Setpoint,5077-5078,U32,,W,Except SG5.5RS-JP,3X,String,V1.1.66,5077,5078,1.0
+43,Reactive Power Regulation Setpoint,5079-5080,S32,,var,,3X,String,V1.1.66,5079,5080,1.0
+44,Work state,5081-5082,U32,,,See Appendix 2 Except SG5.5RS-JP,3X,String,V1.1.66,5081,5082,1.0
+45,Meter power,5083-5084,S32,,W,Valid for inverters: SG5KTL-MT SG6KTL-MT SG8KTL-M SG10KTL-M SG10KTL-MT SG12KTL-M SG15KTL-M SG17KTL-M SG20KTL-M Note: Country set to Europe Area.,3X,String,V1.1.66,5083,5084,1.0
+46,Meter A phase power,5085-5086,S32,,W,,3X,String,V1.1.66,5085,5086,1.0
+47,Meter B phase power,5087-5088,S32,,W,,3X,String,V1.1.66,5087,5088,1.0
+48,Meter C phase power,5089-5090,S32,,W,,3X,String,V1.1.66,5089,5090,1.0
+49,Load power,5091-5092,S32,,W,,3X,String,V1.1.66,5091,5092,1.0
+50,Daily export energy,5093-5094,U32,,kWh,,3X,String,V1.1.66,5093,5094,0.1
+51,Total export energy,5095-5096,U32,,kWh,,3X,String,V1.1.66,5095,5096,0.1
+52,Daily import energy,5097-5098,U32,,kWh,,3X,String,V1.1.66,5097,5098,0.1
+53,Total import energy,5099-5100,U32,,kWh,,3X,String,V1.1.66,5099,5100,0.1
+54,Daily direct energy consumption,5101-5102,U32,,kWh,,3X,String,V1.1.66,5101,5102,0.1
+55,Total direct energy consumption,5103-5104,U32,,kWh,,3X,String,V1.1.66,5103,5104,0.1
+57,Daily running time,5113,U16,,min,,3X,String,V1.1.66,5113,5113,1.0
+58,Present country,5114,U16,,,,3X,String,V1.1.66,5114,5114,1.0
+59,MPPT 4 voltage,5115,U16,,V,,3X,String,V1.1.66,5115,5115,0.1
+61,MPPT 5 voltage,5117,U16,,V,,3X,String,V1.1.66,5117,5117,0.1
+62,MPPT 5 current,5118,U16,,A,,3X,String,V1.1.66,5118,5118,0.1
+63,MPPT 6 voltage,5119,U16,,V,,3X,String,V1.1.66,5119,5119,0.1
+64,MPPT 6 current,5120,U16,,A,,3X,String,V1.1.66,5120,5120,0.1
+65,MPPT 7 voltage,5121,U16,,V,,3X,String,V1.1.66,5121,5121,0.1
+66,MPPT 7 current,5122,U16,,A,,3X,String,V1.1.66,5122,5122,0.1
+67,MPPT 8 voltage,5123,U16,,V,,3X,String,V1.1.66,5123,5123,0.1
+68,MPPT 8 current,5124,U16,,A,,3X,String,V1.1.66,5124,5124,0.1
+71,Monthly power yields,5128-5129,U32,,kWh,,3X,String,V1.1.66,5128,5129,0.1
+72,MPPT 9 voltage,5130,U16,,V,See Appendix 5 Except SG5.5RS-JP,3X,String,V1.1.66,5130,5130,0.1
+73,MPPT 9 current,5131,U16,,A,,3X,String,V1.1.66,5131,5131,0.1
+74,MPPT 10 voltage,5132,U16,,V,,3X,String,V1.1.66,5132,5132,0.1
+75,MPPT 10 current,5133,U16,,A,,3X,String,V1.1.66,5133,5133,0.1
+76,MPPT 11 voltage,5134,U16,,V,,3X,String,V1.1.66,5134,5134,0.1
+77,MPPT 11 current,5135,U16,,A,,3X,String,V1.1.66,5135,5135,0.1
+78,MPPT 12 voltage,5136,U16,,V,,3X,String,V1.1.66,5136,5136,0.1
+79,MPPT 12 current,5137,U16,,A,,3X,String,V1.1.66,5137,5137,0.1
+80,Reserved,5138-5139,U16,,,,3X,String,V1.1.66,5138,5139,1.0
+81,Work status1,5140,U16,0 : standby 1 : running 2 : Derating 3 : quota 4 : scheduled outage 5 : limit outage 6 : error outage,,Xinjiang power grid requirements Valid for inverters: SG5-25KTL_M SG125HV SG33-50CX SG100-136TX SG80—110HV-M SG225-350HX SG320HX-20 SG85BF SG80KTL-M RT Series,3X,String,V1.1.66,5140,5140,1.0
+82,Work status2,5141,U16,1 : running 2 : shut down 3 : overhaul 4 : standby,,Valid for inverters: SG5-25KTL_M SG125HV SG33-50CX SG100-136TX SG80—110HV-M SG225-350HX SG320HX-20 SG85BF SG80KTL-M RT Series SG3.0/4.0/5.0/6.0/8.0/9.0/10RS- L,3X,String,V1.1.66,5141,5141,1.0
+84,Heart Beat,5143,U16,,,,3X,String,V1.1.66,5143,5143,1.0
+85,Total power yields,5144-5145,U32,,kWh,(Display accuracy increased to 0.1kWh) Valid for inverters: SG5KTL-MT SG6KTL-MT SG8KTL-M SG10KTL-M SG10KTL-MT SG12KTL-M SG15KTL-M SG17KTL-M SG20KTL-M RT Series SG80KTL-M SG111HV SG125HV SG125HV-20 SG33CX SG40CX SG50CX SG110CX SG30CX SG36CX-US SG60CX-US SG49.5CX-JP SG25CX-SA SG100CX SG75CX SG225-350HX SG320HX-20 SG125CX-P2 SG110CX-P2 SG75CX-P2 SG25/30/33/36/40/50CX-P2 SG150CX SG3.0/4.0/5.0/6.0/8.0/9.0/10RS-L SG15/20/25CX-P2-LV,3X,String,V1.1.66,5144,5145,0.1
+86,Negative voltage to the ground,5146,S16,-15000~15000,V,Except SG5.5RS-JP,3X,String,V1.1.66,5146,5146,0.1
+87,Bus voltage,5147,U16,0 - 15000,V,,3X,String,V1.1.66,5147,5147,0.1
+88,Grid frequency,5148,U16,,Hz,(Display accuracy increased to 0.01Hz) Valid for inverters: SG5KTL-MT SG6KTL-MT SG8KTL-M SG10KTL-M SG10KTL-MT SG12KTL-M SG15KTL-M SG17KTL-M SG20KTL-M RT Series SG80KTL-M SG111HV SG125HV SG125HV-20 SG33CX SG40CX SG50CX SG110CX SG30CX SG36CX-US SG60CX-US SG49.5CX-JP SG25CX-SA SG100CX SG75CX SG225-320HX SG125CX-P2 SG110CX-P2 SG75CX-P2 SG25/30/33/36/40/50CX-P2 SG150CX SG3.0/4.0/5.0/6.0/8.0/9.0/10RS-L SG15/20/25CX-P2-LV,3X,String,V1.1.66,5148,5148,0.01
+89,Reserved,5149,U16,0~15000,V,,3X,String,V1.1.66,5149,5149,0.1
+90,PID work state,5150,U16,2: PID Recover Operation 4: Anti-PID Operation 8: PID Abnormity,,Valid for inverters: SG5KTL-MT SG6KTL-MT SG8KTL-M SG10KTL-M SG10KTL-MT SG12KTL-M SG15KTL-M SG17KTL-M SG20KTL-M RT Series SG80KTL-M SG125HV SG125HV-20 SG80KTL SG30CX SG33CX SG40CX SG50CX SG110CX SG100CX SG75CX SG136TX SG36CX-US SG60CX-US SG49.5CX-JP SG25CX-SA SG225-320HX SG125CX-P2 SG110CX-P2 SG75CX-P2 SG25/30/33/36/40/50CX-P2 SG150CX SG0.7RS-S SG1.0RS-S SG1.5RS-S SG2.0RS-S SG2.5RS-S SG3.0RS-S SG3.0RS SG3.6RS SG4.0RS SG5.0RS SG6.0RS SG8.0RS SG9.0RS SG10RS SG5.0RS-ADA SG3.0/4.0/5.0/6.0/8.0/9.0/10RS-L,3X,String,V1.1.66,5150,5150,1.0
+91,PID alarm code,5151,U16,432:PID resistance abnormal 433:PID function abnormal 434:PID overvoltage/overcurrent protection,,See Appendix 4,3X,String,V1.1.66,5151,5151,1.0
+92,Reserved,5152-5185,U16,,,,3X,String,V1.1.66,5152,5185,1.0
+93,MPPT 13 voltage,5186,U16,,V,,3X,String,V1.1.66,5186,5186,0.1
+94,MPPT 13 current,5187,U16,,A,,3X,String,V1.1.66,5187,5187,0.1
+95,MPPT 14 voltage,5188,U16,,V,,3X,String,V1.1.66,5188,5188,0.1
+96,MPPT 14 current,5189,U16,,A,,3X,String,V1.1.66,5189,5189,0.1
+97,MPPT 15 voltage,5190,U16,,V,,3X,String,V1.1.66,5190,5190,0.1
+98,MPPT 16 current,5191,U16,,A,,3X,String,V1.1.66,5191,5191,0.1
+99,MPPT 16 voltage,5192,U16,,V,,3X,String,V1.1.66,5192,5192,0.1
+100,MPPT 16 current,5193,U16,,A,,3X,String,V1.1.66,5193,5193,0.1

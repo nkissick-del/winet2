@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "model": "STRING",
+  "metrics": {
+    "daily_power_yields": {
+      "register": 5003
+    },
+    "grid_export_energy": {
+      "register": 5094
+    },
+    "grid_import_energy": {
+      "register": 5098
+    },
+    "internal_temperature": {
+      "register": 5008
+    },
+    "meter_power": {
+      "register": 5600
+    },
+    "mppt_1_current": {
+      "register": 5012
+    },
+    "mppt_3_current": {
+      "register": 5016
+    },
+    "nominal_active_power": {
+      "register": 5001
+    },
+    "total_output_energy": {
+      "register": 5004
+    }
+  }
+}

@@ -96,7 +96,7 @@ export class SSLConfig {
     }
   }
 
-  getSSLOptions(host: string): tls.ConnectionOptions {
+  getSSLOptions(): tls.ConnectionOptions {
     if (!this.sslEnabled) {
       return {};
     }

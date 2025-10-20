@@ -28,6 +28,9 @@
     "nickstallman"
   ],
   "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "devDependencies": {
     "@types/node": "^24.8.1",
     "@types/ws": "^8.5.10",
@@ -39,10 +42,12 @@
     "lint": "gts lint",
     "clean": "gts clean",
     "compile": "tsc",
+    "test": "node --test \"tools/modbus-discovery/__tests__/**/*.test.js\"",
     "fix": "gts fix",
     "prepare": "npm run compile",
     "pretest": "npm run compile",
-    "posttest": "npm run lint"
+    "posttest": "npm run lint",
+    "build:register-defaults": "python3 tools/modbus-discovery/build_register_defaults.py"
   },
   "dependencies": {
     "dotenv": "^17.2.3",

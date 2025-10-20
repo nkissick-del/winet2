@@ -31,7 +31,8 @@ export declare class winetHandler {
     private ws?;
     private modbusReader?;
     private modbusEnabled;
-    constructor(logger: winston.Logger, host: string, lang: string, frequency: number, winetUser?: string, winetPass?: string, analytics?: Analytics, modbusIp?: string);
+    private inverterType?;
+    constructor(logger: winston.Logger, host: string, lang: string, frequency: number, winetUser?: string, winetPass?: string, analytics?: Analytics, modbusIp?: string, inverterType?: string);
     setProperties(properties: Properties): void;
     setCallback(callback: (devices: z.infer<typeof DeviceSchema>[], deviceStatus: DeviceStatusMap) => void): void;
     private setWatchdog;

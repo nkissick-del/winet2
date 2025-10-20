@@ -78,6 +78,7 @@ let options = {
     ssl: false,
     ha_prefix: 'homeassistant/sensor',
     modbus_ips: [],
+    inverter_type: undefined,
 };
 // Optimized configuration loading with reduced redundancy
 if (fs.existsSync('/data/options.json')) {
@@ -94,15 +95,26 @@ else {
         const val = process.env[key]?.trim();
         return val && val.length > 0 ? val : undefined;
     };
+    const getEnumEnvVar = (key, allowed) => {
+        const raw = process.env[key];
+        if (!raw)
+            return undefined;
+        const value = raw.trim().toUpperCase();
+        if (value.length === 0)
+            return undefined;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (allowed.includes(value)) {
+            return value;
+        }
+        throw new Error(`Invalid ${key} value '${raw}'. Expected one of: ${allowed.join(', ')}`);
+    };
     // Parse comma-separated values once and reuse
     const parseCommaSeparated = (val) => val
         .split(',')
         .map(x => x.trim())
         .filter(x => x.length > 0);
     // Parse comma-separated values preserving empty entries (for optional per-inverter config)
-    const parseCommaSeparatedWithEmpties = (val) => val
-        .split(',')
-        .map(x => x.trim());
+    const parseCommaSeparatedWithEmpties = (val) => val.split(',').map(x => x.trim());
     const hostsEnv = getEnvVar('WINET_HOSTS') || getEnvVar('WINET_HOST');
     // Batch assign environment variables with optimized processing
     Object.assign(options, {
@@ -119,6 +131,10 @@ else {
         ha_prefix: getEnvVar('HA_PREFIX', 'homeassistant/sensor'),
         winet_names: parseCommaSeparated(getEnvVar('WINET_NAMES')),
         modbus_ips: parseCommaSeparatedWithEmpties(getEnvVar('MODBUS_IPS')),
+        inverter_type: getEnumEnvVar('INVERTER_TYPE', [
+            'STRING',
+            'HYBRID',
+        ]),
     });
 }
 if ((!options.winet_hosts || options.winet_hosts.length === 0) &&
@@ -180,10 +196,13 @@ hosts.forEach((hostRaw, index) => {
     // Initialize components with optimized parameters
     const mqttPublisher = new homeassistant_js_1.MqttPublisher(log, mqttClient, haPrefix, '', // Empty devicePrefix - using device serial numbers as identifiers
     inverterId);
-    // Get Modbus IP for this inverter if configured
+    // Get Modbus IP for this inverter (if configured)
     const modbusIp = options.modbus_ips?.[index];
-    log.info(`[${inverterId}] Modbus configuration: index=${index}, IP="${modbusIp}"`);
-    const winet = new winetHandler_js_1.winetHandler(log, host, lang, frequency, options.winet_user, options.winet_pass, new analytics_js_1.Analytics(options.analytics), modbusIp);
+    if (modbusIp) {
+        log.info(`[${inverterId}] Modbus enabled: ${modbusIp}`);
+    }
+    const winet = new winetHandler_js_1.winetHandler(log, host, lang, frequency, options.winet_user, options.winet_pass, new analytics_js_1.Analytics(options.analytics), modbusIp, // Pass Modbus IP (undefined if not configured)
+    options.inverter_type);
     // Use Set for O(1) lookups instead of Array.includes() which is O(n)
     const configuredSensors = new Set();
     const configuredDevices = new Set();

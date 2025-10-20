@@ -9,7 +9,7 @@ export declare class SSLConfig {
     private parseCertificateFingerprints;
     private validateConfiguration;
     private logConfiguration;
-    getSSLOptions(host: string): tls.ConnectionOptions;
+    getSSLOptions(): tls.ConnectionOptions;
     getConnectionStatus(host: string, success: boolean, error?: Error): string;
     static displayConfigHelp(logger: winston.Logger): void;
 }

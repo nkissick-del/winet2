@@ -64,7 +64,7 @@ class SSLConfig {
             this.logger.info("   ℹ️  Run './quick-ssl-check.sh' to analyze your inverter certificates");
         }
     }
-    getSSLOptions(host) {
+    getSSLOptions() {
         if (!this.sslEnabled) {
             return {};
         }

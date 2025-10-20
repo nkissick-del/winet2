@@ -42,7 +42,7 @@ function getProperties(logger, host, lang, ssl) {
         const url = `${ssl ? 'https' : 'http'}://${host}/i18n/${lang}.properties`;
         const request = () => {
             const sslConfig = new sslConfig_1.SSLConfig(logger);
-            const options = ssl ? sslConfig.getSSLOptions(host) : {};
+            const options = ssl ? sslConfig.getSSLOptions() : {};
             (ssl ? https : http)
                 .get(url, options, res => {
                 let data = '';

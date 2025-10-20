@@ -4,6 +4,8 @@
 
 Bridge Sungrow Winet/Winet‑S/Winet‑S2 gateways to Home Assistant using MQTT Discovery.
 
+For detailed troubleshooting notes and register history see [DIAGNOSTICS.md](DIAGNOSTICS.md).
+
 - **What it is**: A Node.js/TypeScript service that connects to Winet devices over WebSocket, polls live metrics, and publishes HA‑compatible MQTT topics.
 - **Why**: Auto‑create sensors in Home Assistant without cloud dependencies.
 - **How**: WebSocket to Winet → parse/normalize → MQTT publish (config + state).
@@ -11,7 +13,8 @@ Bridge Sungrow Winet/Winet‑S/Winet‑S2 gateways to Home Assistant using MQTT 
 ## ✨ Features
 
 - 🔄 **Multi-inverter support** with automatic device discovery
-- 🔐 **SSL/TLS security** with flexible certificate validation
+- � **Modbus TCP integration** for smart meter data (grid import/export energy)
+- �🔐 **SSL/TLS security** with flexible certificate validation
 - 🔑 **MQTT authentication** support
 - 📊 **29+ sensor types** per inverter (power, voltage, current, temperature, etc.)
 - 🛡️ **Robust error handling** with graceful recovery
@@ -19,6 +22,7 @@ Bridge Sungrow Winet/Winet‑S/Winet‑S2 gateways to Home Assistant using MQTT 
 - 🏷️ **Friendly sensor naming** - "Daily Yield (inverter_1)" format
 - 🐳 **Docker support** with Node.js 20 LTS
 - 📦 **Modern stack** - TypeScript 5.9.3, Zod v4, latest dependencies
+- ⚡ **Energy Dashboard ready** - automatic device_class and state_class configuration
 
 ## 🙏 Acknowledgments
 
@@ -43,6 +47,10 @@ Create a `.env` file with minimal variables:
 # Single inverter setup
 WINET_HOST=192.168.1.114
 MQTT_URL=mqtt://192.168.1.101:1883
+INVERTER_TYPE=STRING   # or HYBRID
+
+# Optional: Modbus smart meter (leave blank if none)
+MODBUS_IPS=
 
 # Optional: MQTT authentication
 MQTT_USER=your_mqtt_user
@@ -75,6 +83,13 @@ Home Assistant will auto-discover entities via MQTT Discovery under `homeassista
 - **"Total Active Power (inverter_1)"** 
 - **"Phase A Voltage (inverter_2)"**
 
+### ✅ First-Time Setup Checklist
+1. Confirm each inverter is reachable on the network (ping or web UI).
+2. Decide whether the site is **STRING** or **HYBRID** and set `INVERTER_TYPE` accordingly.
+3. If a Sungrow smart meter is installed, identify which inverter it is wired to and place that IP in the matching slot of `MODBUS_IPS`.
+4. Test MQTT credentials by publishing a sample message (optional but helpful for first-time users).
+5. Start the bridge (`docker compose up --build -d`) and watch `docker compose logs --tail 200` for `📊 Modbus meter data` entries.
+
 ## 🔗 Multiple Inverters
 
 Set a comma-separated list of hosts via `WINET_HOSTS`:
@@ -82,10 +97,12 @@ Set a comma-separated list of hosts via `WINET_HOSTS`:
 ```bash
 # Multiple inverter setup
 WINET_HOSTS=192.168.1.10,192.168.1.11,192.168.1.12
-MQTT_URL=mqtt://192.168.1.101:1883
-
-# Optional: Custom names for each inverter (no spaces, MQTT-safe)
 WINET_NAMES=inverter_1,inverter_2,inverter_3
+MQTT_URL=mqtt://192.168.1.101:1883
+INVERTER_TYPE=STRING   # applies to all inverters unless you run separate containers
+
+# Modbus smart meter mapping (blank entry means no meter)
+MODBUS_IPS=,192.168.1.12,   # Only inverter_2 has the chained smart meter
 
 # Optional: Customize discovery prefix
 HA_PREFIX=homeassistant/sensor
@@ -96,6 +113,15 @@ HA_PREFIX=homeassistant/sensor
 - 🔄 **Independent connections** per inverter
 - 📊 **Unique sensor paths** prevent conflicts
 - 🏷️ **Custom naming** for easy identification
+
+**Smart Meter Pairing (String Inverters)**
+- Sungrow smart meters daisy-chain to a single inverter on the RS485 bus.
+- In the `.env` file, `MODBUS_IPS` must list an entry for every inverter in `WINET_HOSTS`.
+  - Use the meter host (typically the inverter IP) in the slot for the inverter that owns the meter.
+  - Leave the other slots blank (`''`).
+- Example: if the meter is wired to `192.168.1.12`, set `MODBUS_IPS=,192.168.1.12` so the second inverter supplies meter data for the whole array.
+- Only that inverter will expose `meter_power`, `grid_import_energy`, and `grid_export_energy`.
+
 
 ## 🔐 Security Configuration
 
@@ -125,12 +151,18 @@ INVERTER_CERT_FINGERPRINTS=sha256:A1:B2:C3...,sha256:D4:E5:F6...
 
 ## ⚙️ Configuration Reference
 
+### Modbus Defaults & Discovery
+- Out of the box the app loads register defaults from `tools/modbus-discovery/modbus-register-defaults.json` (built from Sungrow CSVs).
+- To verify or regenerate registers on your inverter: `npm run build:register-defaults` then `node tools/modbus-discovery/discover.js`.
+- The discovery CLI now asks for inverter type (`1=String`, `2=Hybrid`) and rewrites `modbus-registers.json` with validated overrides.
+
 ### Environment Variables
 ```bash
 # Required
 WINET_HOST=192.168.1.114                    # Single inverter IP/hostname
 WINET_HOSTS=192.168.1.10,192.168.1.11     # Multi-inverter (overrides WINET_HOST)
 MQTT_URL=mqtt://192.168.1.101:1883        # MQTT broker URL
+INVERTER_TYPE=STRING                   # Register defaults: STRING or HYBRID
 
 # Authentication
 MQTT_USER=mqtt_username                     # MQTT authentication (optional)
@@ -138,13 +170,18 @@ MQTT_PASS=mqtt_password                     # MQTT password (optional)
 WINET_USER=admin                           # Inverter username (default: admin)
 WINET_PASS=pw8888                          # Inverter password (default: pw8888)
 
+# Modbus TCP (optional - for smart meter data)
+MODBUS_IPS=,192.168.1.12                   # One entry per inverter matching WINET_HOSTS
+                                            # Use the meter owner's IP; leave others blank
+                                            # Enables meter_power/grid_import/grid_export on that inverter
+
 # Customization
 WINET_NAMES=House,Garage,Shed             # Custom inverter names (optional)
 HA_PREFIX=homeassistant/sensor             # MQTT discovery prefix (default)
 POLL_INTERVAL=10                           # Polling interval in seconds (default: 10)
 
 # Privacy & System
-ANALYTICS=false                            # Disable telemetry (default: true)
+ANALYTICS=false                            # Disable telemetry (default: false)
 SINGLE_PHASE_SYSTEM=true                   # Hide 3-phase sensors (optional)
 
 # SSL/TLS Security
@@ -371,3 +408,39 @@ This enhanced version was developed with a focus on code quality, maintainabilit
 ## 📄 License
 
 This project builds upon and extends the work of Nick Stallman's original winet-extractor. Please ensure to respect any licensing terms from the original project when using this enhanced version.
+
+## 🛠️ Modbus Register Discovery & Dynamic Mapping
+
+This app supports dynamic mapping of Modbus registers for maximum compatibility with different Sungrow inverter models and firmware versions.
+
+### How It Works
+- On first setup (or after a firmware update), run the Modbus register discovery tool:
+
+```bash
+node tools/modbus-discovery/discover.js
+```
+- The tool will prompt for your inverter IP, port, slave ID, scan range, and current meter values (from your inverter's web UI).
+- It will scan the specified register range and auto-match values to your readings.
+- Discovered register addresses are saved to `modbus-registers.json`.
+- The main app will use these addresses for Modbus polling.
+
+### Environment Variables
+- `MODBUS_DISCOVERY_ON_START=true|false` — Run register scan on startup (default: false)
+- `MODBUS_SCAN_START=5000` — Start of scan range (default: 5000)
+- `MODBUS_SCAN_END=5700` — End of scan range (default: 5700)
+
+You can set these in your `.env` file to control scanning behavior and range. For advanced troubleshooting, you may scan the full range (0–65535), but this is slower and not usually necessary.
+
+### Manual Scan
+You can always run the discovery tool manually to update register mappings:
+```bash
+node tools/modbus-discovery/discover.js
+```
+
+### Safety Note
+Scanning the full Modbus register range may take several minutes and could stress the inverter. Use the default ranges unless you have a special need.
+
+### Updating Register Addresses
+If you change inverter models or update firmware and your sensors stop working, re-run the discovery tool and update your config.
+
+---

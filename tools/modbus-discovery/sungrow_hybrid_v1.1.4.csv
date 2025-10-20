@@ -1,0 +1,124 @@
+no,name,address,data_type,data_range,unit,note,register_type,inverter_family,source_version,address_start,address_end,scale_factor
+1,Protocol No,4950-4951,U32,,,,3X,Hybrid,V1.1.4,4950,4951,1.0
+2,Protocol ver,4952-4953,U32,,,,3X,Hybrid,V1.1.4,4952,4953,1.0
+3,Certification version number of ARM software,4954-4968,UTF-8,,,,3X,Hybrid,V1.1.4,4954,4968,1.0
+4,Certification version number of DSP software,4969-4983,UTF-8,,,,3X,Hybrid,V1.1.4,4969,4983,1.0
+5,Reserved,4984-4989,,,,,3X,Hybrid,V1.1.4,4984,4989,1.0
+6,SN,4990-4999,UTF-8,,,,3X,Hybrid,V1.1.4,4990,4999,1.0
+7,Device type code,5000,U16,,,Refer to appendix 4.6,3X,Hybrid,V1.1.4,5000,5000,1.0
+8,Nominal output power,5001,U16,,kW,,3X,Hybrid,V1.1.4,5001,5001,0.1
+9,Output type,5002,U16,0 - single; 1 - 3P4L; 2 - 3P3L,,,3X,Hybrid,V1.1.4,5002,5002,1.0
+10,Daily Output Energy,5003,U16,,kWh,Power generation of active output (including PV power generation and battery discharge),3X,Hybrid,V1.1.4,5003,5003,0.1
+11,Total Output Energy,5004-5005,U32,,kWh,Power generation of active output (including PV power generation and battery discharge),3X,Hybrid,V1.1.4,5004,5005,0.1
+12,Reserved,5006-5007,,,,,3X,Hybrid,V1.1.4,5006,5007,1.0
+13,Inside Temperature,5008,S16,,°C,,3X,Hybrid,V1.1.4,5008,5008,0.1
+14,Reserved,5009-5010,,,,,3X,Hybrid,V1.1.4,5009,5010,1.0
+15,MPPT 1 Voltage,5011,U16,,V,,3X,Hybrid,V1.1.4,5011,5011,0.1
+16,MPPT 1 Current,5012,U16,,A,,3X,Hybrid,V1.1.4,5012,5012,0.1
+17,MPPT 2 Voltage,5013,U16,,V,,3X,Hybrid,V1.1.4,5013,5013,0.1
+18,MPPT 2 Current,5014,U16,,A,,3X,Hybrid,V1.1.4,5014,5014,0.1
+19,MPPT 3 Voltage,5015,U16,,V,,3X,Hybrid,V1.1.4,5015,5015,0.1
+20,MPPT 3 Current,5016,U16,,A,,3X,Hybrid,V1.1.4,5016,5016,0.1
+21,Total DC power,5017-5018,U32,,W,PV Power,3X,Hybrid,V1.1.4,5017,5018,1.0
+22,A-B line voltage/phase A voltage,5019,U16,,V,Refer to Output type (address: 5002) 0: phase voltage; 1: phase voltage; 2: line voltage,3X,Hybrid,V1.1.4,5019,5019,0.1
+23,B-C line voltage/phase B voltage,5020,U16,,V,Refer to Output type (address: 5002) 0: phase voltage; 1: phase voltage; 2: line voltage,3X,Hybrid,V1.1.4,5020,5020,0.1
+24,C-A line voltage/phase voltage,5021,U16,,V,Refer to Output type (address: 5002) 0: phase voltage; 1: phase voltage; 2: line voltage,3X,Hybrid,V1.1.4,5021,5021,0.1
+25,Reserved,5022-5030,,,,,3X,Hybrid,V1.1.4,5022,5030,1.0
+26,Reactive power,5033-5034,S32,,var,,3X,Hybrid,V1.1.4,5033,5034,1.0
+27,Power factor,5035,S16,,,,3X,Hybrid,V1.1.4,5035,5035,0.001
+28,Grid frequency,5036,U16,,Hz,,3X,Hybrid,V1.1.4,5036,5036,0.1
+29,MPPT 4 Voltage,5115,U16,,V,Related Models: SH8.0RS-SH10RS,3X,Hybrid,V1.1.4,5115,5115,0.1
+30,MPPT 4 Current,5116,U16,,A,Related Models: SH8.0RS-SH10RS,3X,Hybrid,V1.1.4,5116,5116,0.1
+31,Battery power - Wide rang,5214-5215,S32,,W,,3X,Hybrid,V1.1.4,5214,5215,1.0
+32,Grid Frequency - High Precision,5242,U16,,Hz,,3X,Hybrid,V1.1.4,5242,5242,0.01
+33,Meter Phase A Active Power,5603,S32,,W,,3X,Hybrid,V1.1.4,5603,5603,1.0
+34,Meter Phase B Active Power,5605,S32,,W,,3X,Hybrid,V1.1.4,5605,5605,1.0
+35,Meter Phase C Active Power,5607,S32,,W,,3X,Hybrid,V1.1.4,5607,5607,1.0
+36,Export limit min,5622,U16,,W,,3X,Hybrid,V1.1.4,5622,5622,10.0
+37,Export limit max,5623,U16,,W,,3X,Hybrid,V1.1.4,5623,5623,10.0
+38,BDC rated power,5628,U16,,W,,3X,Hybrid,V1.1.4,5628,5628,100.0
+39,Battery Current,5631,S16,,A,,3X,Hybrid,V1.1.4,5631,5631,0.1
+40,Max. Charging Current (BMS),5635,U16,,A,,3X,Hybrid,V1.1.4,5635,5635,1.0
+41,Max. Discharging Current (BMS),5636,U16,,A,,3X,Hybrid,V1.1.4,5636,5636,1.0
+42,Battery Capacity- High precision,5639,U16,,kWh,,3X,Hybrid,V1.1.4,5639,5639,0.01
+43,Phase A Backup Current,5720,S16,,A,,3X,Hybrid,V1.1.4,5720,5720,0.1
+44,Phase B Backup Current,5721,S16,,A,,3X,Hybrid,V1.1.4,5721,5721,0.1
+45,Phase C Backup Current,5722,S16,,A,,3X,Hybrid,V1.1.4,5722,5722,0.1
+46,Phase A Backup Power,5723,S16,,W,,3X,Hybrid,V1.1.4,5723,5723,1.0
+47,Phase B Backup Power,5724,S16,,W,,3X,Hybrid,V1.1.4,5724,5724,1.0
+48,Phase C Backup Power,5725,S16,,W,,3X,Hybrid,V1.1.4,5725,5725,1.0
+49,Total Backup Power,5726-5727,S32,,W,,3X,Hybrid,V1.1.4,5726,5727,1.0
+50,Phase A Backup Voltage,5731,U16,,V,,3X,Hybrid,V1.1.4,5731,5731,0.1
+51,Phase B Backup Voltage,5732,U16,,V,,3X,Hybrid,V1.1.4,5732,5732,0.1
+52,Phase C Backup Voltage,5733,U16,,V,,3X,Hybrid,V1.1.4,5733,5733,0.1
+53,Backup Frequency,5734,U16,,Hz,,3X,Hybrid,V1.1.4,5734,5734,0.01
+54,PV Power of today,6100-6195,U16,,W,,3X,Hybrid,V1.1.4,6100,6195,1.0
+55,Daily PV energy yields,6196-6226,U16,,kWh,,3X,Hybrid,V1.1.4,6196,6226,0.1
+56,Monthly PV energy yields,6227-6238,U16,,kWh,,3X,Hybrid,V1.1.4,6227,6238,0.1
+57,Reserved,6239-6243,,,,,3X,Hybrid,V1.1.4,6239,6243,1.0
+58,Yearly PV energy yields,6250-6289,U32,Valid for 15 years,kWh,Array length 20 (U32*20).,3X,Hybrid,V1.1.4,6250,6289,0.1
+59,Direct power consumption of today from PV,6290-6385,U16,,W,Array length 96 (U16*96).,3X,Hybrid,V1.1.4,6290,6385,1.0
+60,Daily direct energy consumption from PV,6386-6416,U16,,kWh,Array length 31 (U16*31).,3X,Hybrid,V1.1.4,6386,6416,0.1
+61,Monthly direct energy consumption from PV,6417-6428,U16,,kWh,Array length 12 (U16*12).,3X,Hybrid,V1.1.4,6417,6428,0.1
+62,Yearly direct energy consumption from PV,6429-6468,U32,Valid for 15 years,kWh,Array length 20 (U32*20).,3X,Hybrid,V1.1.4,6429,6468,0.1
+63,Export power from PV today,6469-6564,U16,,W,Array length 96 (U16*96).,3X,Hybrid,V1.1.4,6469,6564,1.0
+64,Daily export energy from PV,6565-6595,U16,,kWh,Array length 31 (U16*31).,3X,Hybrid,V1.1.4,6565,6595,0.1
+65,Monthly export energy from PV,6596-6607,U16,,kWh,Array length 12 (U16*12).,3X,Hybrid,V1.1.4,6596,6607,0.1
+66,Yearly export energy from PV,6608-6647,U32,Valid for 15 years,kWh,Array length 20 (U32*20).,3X,Hybrid,V1.1.4,6608,6647,0.1
+67,Battery charge power of today,6648-6743,U16,,W,Array length 96 (U16*96).,3X,Hybrid,V1.1.4,6648,6743,1.0
+68,Daily battery charge energy from PV,6744-6774,U16,,kWh,Array length 31 (U16*31).,3X,Hybrid,V1.1.4,6744,6774,0.1
+69,Monthly battery charge energy from PV,6775-6786,U16,,kWh,Array length 12 (U16*12).,3X,Hybrid,V1.1.4,6775,6786,0.1
+70,Yearly battery charge energy from PV,6787-6826,U32,Valid for 15 years,kWh,Array length 20 (U32*20).,3X,Hybrid,V1.1.4,6787,6826,0.1
+71,Reserved,6827-6849,,,,,3X,Hybrid,V1.1.4,6827,6849,1.0
+72,Reserved,6862-12999,,,,,3X,Hybrid,V1.1.4,6862,12999,1.0
+73,Running state,13000,U16,,,Refer to Appendix 4.1,3X,Hybrid,V1.1.4,13000,13000,1.0
+74,Power Flow Status,13001,U16,,,Refer to Appendix 4.2,3X,Hybrid,V1.1.4,13001,13001,1.0
+75,Daily PV Generation,13002,U16,,kWh,Electricity generated by the inverter through the PV module on the day,3X,Hybrid,V1.1.4,13002,13002,0.1
+76,Total PV Generation,13003-13004,U32,,kWh,Total electricity generated by the inverter through the PV module,3X,Hybrid,V1.1.4,13003,13004,0.1
+77,Daily export power from PV,13005,U16,,kWh,Electricity delivered by the inverter to power grid through the PV module on the day,3X,Hybrid,V1.1.4,13005,13005,0.1
+78,Total export energy from PV,13006-13007,U32,,kWh,Total electricity delivered by the inverter to power grid through the PV module,3X,Hybrid,V1.1.4,13006,13007,0.1
+79,Load power,13008-13009,S32,,W,Power consumed by loads,3X,Hybrid,V1.1.4,13008,13009,1.0
+80,Export power,13010-13011,S32,,W,Power delivered by the inverter to power grid,3X,Hybrid,V1.1.4,13010,13011,1.0
+81,Daily battery charge energy from PV,13012,U16,,kWh,Electricity that the inverter charges the batteries through the PV module on the day,3X,Hybrid,V1.1.4,13012,13012,0.1
+82,Total battery charge energy from PV,13013-13014,U32,,kWh,Total electricity that the inverter charges the batteries through the PV module,3X,Hybrid,V1.1.4,13013,13014,0.1
+83,Daily direct energy consumption,13017,U16,,kWh,Electricity taken from PV module by loads on the day,3X,Hybrid,V1.1.4,13017,13017,0.1
+84,Total direct energy consumption,13018-13019,U32,,kWh,Accumulated electricity taken by the inverter from the PV module,3X,Hybrid,V1.1.4,13018,13019,0.1
+85,Battery voltage,13020,U16,,V,,3X,Hybrid,V1.1.4,13020,13020,0.1
+86,Battery current,13021,U16,,A,,3X,Hybrid,V1.1.4,13021,13021,0.1
+87,Battery power,13022,U16,,W,,3X,Hybrid,V1.1.4,13022,13022,1.0
+88,Battery level,13023,U16,,%,,3X,Hybrid,V1.1.4,13023,13023,0.1
+89,Battery state of healthy,13024,U16,,%,,3X,Hybrid,V1.1.4,13024,13024,0.1
+90,Battery temperature,13025,S16,,°C,,3X,Hybrid,V1.1.4,13025,13025,0.1
+91,Daily battery discharge energy,13026,U16,,kWh,,3X,Hybrid,V1.1.4,13026,13026,0.1
+92,Total battery discharge energy,13027-13028,U32,,kWh,,3X,Hybrid,V1.1.4,13027,13028,0.1
+93,Self-consumption of today,13029,U16,,%,,3X,Hybrid,V1.1.4,13029,13029,0.1
+94,Reserved,13030,U16,,,,3X,Hybrid,V1.1.4,13030,13030,1.0
+95,Phase A current,13031,S16,,A,Output type (address 5002) is 0: only phase A current is uploaded; 1 or 2: current of corresponding phases is uploaded,3X,Hybrid,V1.1.4,13031,13031,0.1
+96,Phase B current,13032,S16,,A,,3X,Hybrid,V1.1.4,13032,13032,0.1
+97,Phase C current,13033,S16,,A,,3X,Hybrid,V1.1.4,13033,13033,0.1
+98,Total active power,13034-13035,S32,,W,,3X,Hybrid,V1.1.4,13034,13035,1.0
+99,Daily Import Energy,13036,U16,,kWh,,3X,Hybrid,V1.1.4,13036,13036,0.1
+100,Total Import Energy,13037-13038,U32,,kWh,,3X,Hybrid,V1.1.4,13037,13038,0.1
+101,Battery Capacity,13039,U16,,0.1kwh or 1Ah,Li-ion:0.1kWh; Lead-acid: 1Ah Applicable types: SH5.0-10.0RT SH8.0-10RS,3X,Hybrid,V1.1.4,13039,13039,1.0
+102,Daily Charge Energy,13040,U16,,kWh,Totalchargeof batteries on the day,3X,Hybrid,V1.1.4,13040,13040,0.1
+103,Total Charge Energy,13041-13042,U32,,kWh,Accumulated charge of batteries,3X,Hybrid,V1.1.4,13041,13042,0.1
+104,DRM State,13043,U16,1~9: DRM0~DRM8 Other Value: Invalid,,,3X,Hybrid,V1.1.4,13043,13043,1.0
+105,Reserved,13044,,,,,3X,Hybrid,V1.1.4,13044,13044,1.0
+106,Daily export energy,13045,U16,,kWh,Electricity delivered by the inverter to power grid through the PV module or batteries on the day,3X,Hybrid,V1.1.4,13045,13045,0.1
+107,Total export energy,13046-13047,U32,,kWh,Accumulated electricity delivered by the inverter to power grid through the PV module or batteries,3X,Hybrid,V1.1.4,13046,13047,0.1
+108,Reserved,13048-13049,,,,,3X,Hybrid,V1.1.4,13048,13049,1.0
+109,Inverter alarm,13050-13051,U32,,,Refer to Appendix 4.3,3X,Hybrid,V1.1.4,13050,13051,1.0
+110,Grid-side fault,13052-13053,U32,,,Refer to Appendix 4.3,3X,Hybrid,V1.1.4,13052,13053,1.0
+111,System fault 1,13054-13055,U32,,,Refer to Appendix 4.3,3X,Hybrid,V1.1.4,13054,13055,1.0
+112,System fault 2,13056-13057,U32,,,Refer to Appendix 4.3,3X,Hybrid,V1.1.4,13056,13057,1.0
+113,DC-side fault,13058-13059,U32,,,Refer to Appendix 4.3,3X,Hybrid,V1.1.4,13058,13059,1.0
+114,Permanent fault,13060-13061,U32,,,Refer to Appendix 4.3,3X,Hybrid,V1.1.4,13060,13061,1.0
+115,BDC-side fault,13062-13063,U32,,,Refer to Appendix 4.3,3X,Hybrid,V1.1.4,13062,13063,1.0
+116,BDC-side permanent fault,13064-13065,U32,,,Refer to Appendix 4.3,3X,Hybrid,V1.1.4,13064,13065,1.0
+117,Battery fault,13066-13067,U32,,,Refer to Appendix 4.3,3X,Hybrid,V1.1.4,13066,13067,1.0
+118,Battery alarm,13068-13069,U32,,,Refer to Appendix 4.3,3X,Hybrid,V1.1.4,13068,13069,1.0
+119,BMS alarm,13070-13071,U32,,,Refer to Appendix 4.4,3X,Hybrid,V1.1.4,13070,13071,1.0
+120,BMS protection,13072-13073,U32,,,"This part of data is the fault alarm information of the batteries used for the inverter. The communication address is the communication address of the if 5 batteries are connected, the communication",3X,Hybrid,V1.1.4,13072,13073,1.0
+121,BMS fault 1,13074-13075,U32,,,"This part of data is the fault alarm information of the batteries used for the inverter. The communication address is the communication address of the if 5 batteries are connected, the communication",3X,Hybrid,V1.1.4,13074,13075,1.0
+122,BMS fault 2,13076-13077,U32,,,"This part of data is the fault alarm information of the batteries used for the inverter. The communication address is the communication address of the if 5 batteries are connected, the communication",3X,Hybrid,V1.1.4,13076,13077,1.0
+123,BMS alarm 2,13078-13079,U32,,,"This part of data is the fault alarm information of the batteries used for the inverter. The communication address is the communication address of the if 5 batteries are connected, the communication",3X,Hybrid,V1.1.4,13078,13079,1.0

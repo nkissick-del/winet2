@@ -21,7 +21,7 @@ export function getProperties(
 
     const request = () => {
       const sslConfig = new SSLConfig(logger);
-      const options = ssl ? sslConfig.getSSLOptions(host) : {};
+      const options = ssl ? sslConfig.getSSLOptions() : {};
 
       (ssl ? https : http)
         .get(url, options, res => {
