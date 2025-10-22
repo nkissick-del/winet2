@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  winet2:
+    build: ..
+    container_name: winet2
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      # Required Configuration
+      - WINET_HOST=${WINET_HOST}
+      - MQTT_URL=${MQTT_URL}
+      
+      # Optional Configuration
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASS=${MQTT_PASS}
+      - POLL_INTERVAL=${POLL_INTERVAL:-10}
+      
+      # Enable Metrics
+      - METRICS_ENABLED=true
+      - METRICS_PORT=9090
+      
+      # SSL Configuration
+      - SSL=${SSL:-false}
+      - SSL_VALIDATION=${SSL_VALIDATION:-bypass}
+      
+      # Caching
+      - PROPERTIES_CACHE_ENABLED=true
+      - PROPERTIES_CACHE_DIR=/data/cache
+    volumes:
+      - winet2-data:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      - winet2
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/winet2-dashboard.json:/var/lib/grafana/dashboards/winet2.json:ro
+    depends_on:
+      - prometheus
+
+volumes:
+  winet2-data:
+  prometheus-data:
+  grafana-data:

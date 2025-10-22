@@ -4,6 +4,9 @@ import { DeviceStatusMap } from './types/DeviceStatus';
 import { Properties } from './types/Properties';
 import * as winston from 'winston';
 import { Analytics } from './analytics';
+export type DeviceRecord = z.infer<typeof DeviceSchema> & {
+    dev_model_base?: string;
+};
 export declare class winetHandler {
     private winetUser;
     private winetPass;
@@ -19,6 +22,8 @@ export declare class winetHandler {
     private winetVersion?;
     private scanInterval?;
     private watchdogInterval?;
+    private requestTimeout?;
+    private readonly REQUEST_TIMEOUT_MS;
     private logger;
     private host;
     private ssl;

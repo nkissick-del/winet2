@@ -24,6 +24,8 @@ class winetHandler {
     winetVersion;
     scanInterval;
     watchdogInterval;
+    requestTimeout;
+    REQUEST_TIMEOUT_MS = 30000; // 30 seconds
     logger;
     host;
     ssl = false;
@@ -118,6 +120,11 @@ class winetHandler {
         if (this.scanInterval !== undefined) {
             clearInterval(this.scanInterval);
         }
+        // Clear any pending request timeout
+        if (this.requestTimeout) {
+            clearTimeout(this.requestTimeout);
+            this.requestTimeout = undefined;
+        }
         this.clearWatchdog();
         setTimeout(() => {
             this.connect();
@@ -129,6 +136,16 @@ class winetHandler {
     sendPacket(data) {
         const packet = Object.assign({ lang: this.lang, token: this.token }, data);
         if (this.ws && this.ws.readyState === ws_1.default.OPEN) {
+            // Clear any existing timeout
+            if (this.requestTimeout) {
+                clearTimeout(this.requestTimeout);
+            }
+            // Set timeout for this request
+            this.requestTimeout = setTimeout(() => {
+                this.logger.error(`Request timeout after ${this.REQUEST_TIMEOUT_MS}ms for service: ${data.service || 'unknown'}`);
+                this.logger.warn('Forcing reconnection due to request timeout');
+                this.reconnect();
+            }, this.REQUEST_TIMEOUT_MS);
             this.ws.send(JSON.stringify(packet));
         }
     }
@@ -146,6 +163,11 @@ class winetHandler {
     }
     onMessage(data) {
         this.watchdogLastData = Date.now();
+        // Clear request timeout when receiving any message
+        if (this.requestTimeout) {
+            clearTimeout(this.requestTimeout);
+            this.requestTimeout = undefined;
+        }
         try {
             const message = JSON.parse(data.toString());
             const { result_code, result_data } = message;
