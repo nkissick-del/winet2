@@ -32,6 +32,9 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const getProperties_js_1 = require("./getProperties.js");
 const winetHandler_js_1 = require("./winetHandler.js");
@@ -41,15 +44,15 @@ const fs = __importStar(require("fs"));
 const util = __importStar(require("util"));
 const analytics_js_1 = require("./analytics.js");
 const sslConfig_js_1 = require("./sslConfig.js");
-const dotenv = require('dotenv');
-console.log('🚀 WINET2 Application Starting - Multi-inverter support enabled');
+const dotenv_1 = __importDefault(require("dotenv"));
+console.log('WINET2 Application Starting - Multi-inverter support enabled');
 // Global error handlers to prevent application crashes
 process.on('uncaughtException', (error) => {
-    console.error('❌ UNCAUGHT EXCEPTION - This should not crash the application:', error);
+    console.error('UNCAUGHT EXCEPTION - This should not crash the application:', error);
     // Log but don't exit - let the application continue
 });
 process.on('unhandledRejection', (reason) => {
-    console.error('❌ UNHANDLED PROMISE REJECTION - This should not crash the application:', reason);
+    console.error('UNHANDLED PROMISE REJECTION - This should not crash the application:', reason);
     // Log but don't exit - let the application continue
 });
 const logger = winston.createLogger({
@@ -85,7 +88,7 @@ if (fs.existsSync('/data/options.json')) {
     options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
 }
 else {
-    dotenv.config();
+    dotenv_1.default.config();
     // Helper function to trim and validate environment variables
     const getEnvVar = (key, defaultVal = '') => {
         const val = process.env[key]?.trim();
@@ -137,13 +140,73 @@ else {
         ]),
     });
 }
-if ((!options.winet_hosts || options.winet_hosts.length === 0) &&
-    !options.winet_host) {
-    throw new Error('No host provided');
+// Configuration validation with detailed error messages
+function validateConfiguration(opts) {
+    const errors = [];
+    const warnings = [];
+    // Validate required fields
+    if (!opts.mqtt_url) {
+        errors.push('MQTT_URL is required but not provided.\n' +
+            '  Please set MQTT_URL environment variable or add it to /data/options.json.\n' +
+            '  Example: MQTT_URL=mqtt://localhost:1883');
+    }
+    if ((!opts.winet_hosts || opts.winet_hosts.length === 0) &&
+        !opts.winet_host) {
+        errors.push('At least one WINET_HOST or WINET_HOSTS is required.\n' +
+            '  Please set WINET_HOST or WINET_HOSTS environment variable.\n' +
+            '  Examples:\n' +
+            '    WINET_HOST=192.168.1.100\n' +
+            '    WINET_HOSTS=192.168.1.100,192.168.1.101');
+    }
+    // Validate optional but important fields
+    if (opts.ssl && opts.mqtt_url && opts.mqtt_url.startsWith('mqtt://')) {
+        warnings.push('SSL enabled but MQTT uses unencrypted connection.\n' +
+            '  Consider using mqtts:// for encrypted MQTT communication.');
+    }
+    // Validate poll interval
+    const pollInterval = parseInt(opts.poll_interval);
+    if (isNaN(pollInterval)) {
+        errors.push(`Invalid POLL_INTERVAL value: ${opts.poll_interval}\n` +
+            '  Must be a number in seconds. Example: POLL_INTERVAL=10');
+    }
+    else if (pollInterval < 5) {
+        warnings.push(`Poll interval ${pollInterval}s is very low and may cause network congestion.\n` +
+            '  Recommended minimum: 5 seconds. Recommended value: 10-30 seconds.');
+    }
+    else if (pollInterval > 300) {
+        warnings.push(`Poll interval ${pollInterval}s is very high (>5 minutes).\n` +
+            '  Data updates will be infrequent.');
+    }
+    // Validate modbus configuration
+    if (opts.modbus_ips && opts.modbus_ips.length > 0) {
+        const hostCount = opts.winet_hosts && opts.winet_hosts.length > 0
+            ? opts.winet_hosts.length
+            : 1;
+        if (opts.modbus_ips.length !== hostCount) {
+            warnings.push(`MODBUS_IPS count (${opts.modbus_ips.length}) doesn't match inverter count (${hostCount}).\n` +
+                '  Some inverters may not have Modbus data. Use empty values (e.g., "192.168.1.10,,192.168.1.12") to skip specific inverters.');
+        }
+    }
+    // Validate inverter names match count
+    if (opts.winet_names && opts.winet_names.length > 0) {
+        const hostCount = opts.winet_hosts && opts.winet_hosts.length > 0
+            ? opts.winet_hosts.length
+            : 1;
+        if (opts.winet_names.length !== hostCount) {
+            warnings.push(`WINET_NAMES count (${opts.winet_names.length}) doesn't match inverter count (${hostCount}).\n` +
+                '  Some inverters may use default names (inverter1, inverter2, etc.).');
+        }
+    }
+    // Throw on errors
+    if (errors.length > 0) {
+        throw new Error(`Configuration validation failed:\n\n${errors.join('\n\n')}`);
+    }
+    // Log warnings
+    if (warnings.length > 0) {
+        console.warn(`\nConfiguration warnings:\n${warnings.join('\n\n')}\n`);
+    }
 }
-if (!options.mqtt_url) {
-    throw new Error('No mqtt provided');
-}
+validateConfiguration(options);
 const lang = 'en_US';
 const frequency = parseInt(options.poll_interval) || 10;
 // PERFORMANCE FIX #2: Track timers for cleanup to prevent memory leaks
@@ -213,7 +276,6 @@ hosts.forEach((hostRaw, index) => {
         log.info(`[${inverterId}] Cleared sensor cache - will reconfigure all sensors on next update`);
     }, 3600000); // Use milliseconds directly (1 hour = 3600000ms)
     activeTimers.push(cacheResetTimer);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     winet.setCallback((devices, deviceStatus) => {
         log.info(`[${inverterId}] Received device update for ${devices.length} devices`);
         // First publish discovery configurations for new devices/sensors
@@ -252,13 +314,13 @@ hosts.forEach((hostRaw, index) => {
 });
 // PERFORMANCE FIX #2: Graceful shutdown to prevent memory leaks
 const cleanup = () => {
-    logger.info('🛑 Graceful shutdown initiated - cleaning up timers...');
+    logger.info('Graceful shutdown initiated - cleaning up timers...');
     activeTimers.forEach((timer, index) => {
         clearInterval(timer);
         logger.info(`Cleared timer ${index + 1}/${activeTimers.length}`);
     });
     activeTimers.length = 0; // Clear the array
-    logger.info('✅ Cleanup complete');
+    logger.info('Cleanup complete');
     // process.exit(0); // Disabled for linting - let process terminate naturally
 };
 // Handle various shutdown signals

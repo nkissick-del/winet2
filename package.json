@@ -42,7 +42,7 @@
     "lint": "gts lint",
     "clean": "gts clean",
     "compile": "tsc",
-    "test": "node --test \"tools/modbus-discovery/__tests__/**/*.test.js\"",
+    "test": "node --test \"tools/modbus-discovery/__tests__/**/*.test.js\" \"build/test/**/*.test.js\"",
     "fix": "gts fix",
     "prepare": "npm run compile",
     "pretest": "npm run compile",
