@@ -2,6 +2,7 @@ import {getProperties} from './getProperties.js';
 import {winetHandler, DeviceRecord} from './winetHandler.js';
 import {MqttPublisher} from './homeassistant.js';
 import {DeviceStatusMap} from './types/DeviceStatus.js';
+import {getMetrics} from './metrics.js';
 import * as winston from 'winston';
 import * as fs from 'fs';
 import * as util from 'util';
@@ -49,6 +50,14 @@ const logger = winston.createLogger({
 // Initialize SSL configuration and display settings
 new SSLConfig(logger); // Initialize for side effects
 
+// Initialize metrics collector (disabled by default)
+const metricsEnabled =
+  process.env.METRICS_ENABLED === 'true' ||
+  process.env.ENABLE_METRICS === 'true';
+const metricsPort = parseInt(process.env.METRICS_PORT || '9090');
+const metrics = getMetrics({enabled: metricsEnabled, port: metricsPort});
+metrics.initialize(logger);
+
 interface Options {
   winet_host: string;
   winet_hosts: string[];
@@ -64,6 +73,8 @@ interface Options {
   winet_names?: string[];
   modbus_ips?: string[]; // Modbus TCP IPs for each inverter (optional)
   inverter_type?: 'STRING' | 'HYBRID';
+  metrics_enabled?: boolean;
+  metrics_port?: number;
 }
 
 let options: Options = {
@@ -413,12 +424,18 @@ hosts.forEach((hostRaw: string, index: number) => {
 
 // PERFORMANCE FIX #2: Graceful shutdown to prevent memory leaks
 const cleanup = () => {
-  logger.info('Graceful shutdown initiated - cleaning up timers...');
+  logger.info('Graceful shutdown initiated - cleaning up resources...');
+
+  // Clear all timers
   activeTimers.forEach((timer, index) => {
     clearInterval(timer);
     logger.info(`Cleared timer ${index + 1}/${activeTimers.length}`);
   });
-  activeTimers.length = 0; // Clear the array
+  activeTimers.length = 0;
+
+  // Stop metrics server
+  metrics.stop();
+
   logger.info('Cleanup complete');
   // process.exit(0); // Disabled for linting - let process terminate naturally
 };

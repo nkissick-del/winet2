@@ -39,6 +39,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const getProperties_js_1 = require("./getProperties.js");
 const winetHandler_js_1 = require("./winetHandler.js");
 const homeassistant_js_1 = require("./homeassistant.js");
+const metrics_js_1 = require("./metrics.js");
 const winston = __importStar(require("winston"));
 const fs = __importStar(require("fs"));
 const util = __importStar(require("util"));
@@ -68,6 +69,12 @@ const logger = winston.createLogger({
 });
 // Initialize SSL configuration and display settings
 new sslConfig_js_1.SSLConfig(logger); // Initialize for side effects
+// Initialize metrics collector (disabled by default)
+const metricsEnabled = process.env.METRICS_ENABLED === 'true' ||
+    process.env.ENABLE_METRICS === 'true';
+const metricsPort = parseInt(process.env.METRICS_PORT || '9090');
+const metrics = (0, metrics_js_1.getMetrics)({ enabled: metricsEnabled, port: metricsPort });
+metrics.initialize(logger);
 let options = {
     winet_host: '',
     winet_hosts: [],
@@ -314,12 +321,15 @@ hosts.forEach((hostRaw, index) => {
 });
 // PERFORMANCE FIX #2: Graceful shutdown to prevent memory leaks
 const cleanup = () => {
-    logger.info('Graceful shutdown initiated - cleaning up timers...');
+    logger.info('Graceful shutdown initiated - cleaning up resources...');
+    // Clear all timers
     activeTimers.forEach((timer, index) => {
         clearInterval(timer);
         logger.info(`Cleared timer ${index + 1}/${activeTimers.length}`);
     });
-    activeTimers.length = 0; // Clear the array
+    activeTimers.length = 0;
+    // Stop metrics server
+    metrics.stop();
     logger.info('Cleanup complete');
     // process.exit(0); // Disabled for linting - let process terminate naturally
 };
