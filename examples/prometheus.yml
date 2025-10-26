@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'winet2-monitor'
+
+scrape_configs:
+  - job_name: 'winet2'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'winet2'
+          environment: 'production'
+    
+    # Scrape metrics every 15 seconds
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    
+    # Relabeling for better organization
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'winet2'

@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MqttPublisher = void 0;
+const mqttQueue_1 = require("./mqttQueue");
+const diagnostics_1 = require("./diagnostics");
 class MqttPublisher {
     logger;
     mqttClient;
@@ -9,12 +11,159 @@ class MqttPublisher {
     nodeId; // Add nodeId to identify this inverter instance
     publishedDiscovery = new Set();
     lastStatusPublish = {};
+    availabilityTopic;
+    queue;
+    diagnostics;
     constructor(logger, mqttClient, haPrefix, devicePrefix, nodeId) {
         this.logger = logger;
         this.mqttClient = mqttClient;
         this.haPrefix = haPrefix;
         this.devicePrefix = devicePrefix;
         this.nodeId = nodeId;
+        this.availabilityTopic = `${haPrefix}/${nodeId}/availability`;
+        this.queue = new mqttQueue_1.MqttQueue(logger, mqttClient);
+        this.diagnostics = new diagnostics_1.DiagnosticsTracker(logger, nodeId);
+    }
+    /**
+     * Publish availability status (online)
+     * Call when connection is established
+     */
+    publishAvailable() {
+        this.queue.publish(this.availabilityTopic, 'online', { retain: true, qos: 1 }, error => {
+            if (error) {
+                this.logger.error(`Failed to publish availability: ${error.message}`);
+            }
+            else {
+                this.logger.info('Published availability: online');
+            }
+        });
+    }
+    /**
+     * Publish availability status (offline)
+     * Call before disconnecting
+     */
+    publishUnavailable() {
+        this.queue.publish(this.availabilityTopic, 'offline', { retain: true, qos: 1 }, error => {
+            if (error) {
+                this.logger.error(`Failed to publish unavailability: ${error.message}`);
+            }
+        });
+    }
+    /**
+     * Publish diagnostic sensor discovery configs
+     * Creates sensors for connection state, uptime, message count, etc.
+     */
+    publishDiagnosticDiscovery(serialNumber, model) {
+        const diagnosticSensors = [
+            {
+                slug: 'connection_state',
+                name: 'Connection State',
+                icon: 'mdi:connection',
+            },
+            {
+                slug: 'last_update',
+                name: 'Last Update',
+                device_class: 'timestamp',
+            },
+            {
+                slug: 'message_count',
+                name: 'Message Count',
+                icon: 'mdi:counter',
+            },
+            {
+                slug: 'error_count',
+                name: 'Error Count',
+                icon: 'mdi:alert-circle',
+            },
+            {
+                slug: 'uptime',
+                name: 'Uptime',
+                unit_of_measurement: 's',
+                device_class: 'duration',
+                icon: 'mdi:timer',
+            },
+            {
+                slug: 'mqtt_queue_size',
+                name: 'MQTT Queue Size',
+                icon: 'mdi:format-list-numbered',
+            },
+            {
+                slug: 'websocket_state',
+                name: 'WebSocket State',
+                icon: 'mdi:web',
+            },
+        ];
+        const deviceConfig = {
+            identifiers: [serialNumber],
+            name: `${this.nodeId} (${model}-${serialNumber})`,
+            model: model,
+            manufacturer: 'Sungrow',
+            serial_number: serialNumber,
+        };
+        for (const sensor of diagnosticSensors) {
+            const sensorId = `${this.nodeId}_diagnostic_${sensor.slug}`;
+            const discoveryKey = `diagnostic_${sensor.slug}`;
+            if (this.publishedDiscovery.has(discoveryKey))
+                continue;
+            const sensorConfig = {
+                unique_id: sensorId,
+                name: `${sensor.name} (${this.nodeId})`,
+                state_topic: `${this.haPrefix}/${this.nodeId}/diagnostics/state`,
+                value_template: `{{ value_json.${sensor.slug} }}`,
+                device: deviceConfig,
+                availability: [
+                    {
+                        topic: this.availabilityTopic,
+                        payload_available: 'online',
+                        payload_not_available: 'offline',
+                    },
+                ],
+                entity_category: 'diagnostic',
+            };
+            if (sensor.unit_of_measurement) {
+                sensorConfig.unit_of_measurement = sensor.unit_of_measurement;
+            }
+            if (sensor.device_class) {
+                sensorConfig.device_class = sensor.device_class;
+            }
+            if (sensor.icon) {
+                sensorConfig.icon = sensor.icon;
+            }
+            const discoveryTopic = `${this.haPrefix}/${this.nodeId}_diagnostic/${sensor.slug}/config`;
+            this.queue.publish(discoveryTopic, JSON.stringify(sensorConfig), { retain: true }, (error) => {
+                if (error) {
+                    this.logger.error(`Failed to publish diagnostic discovery for ${sensor.slug}:`, error);
+                }
+                else {
+                    this.logger.debug(`Published diagnostic discovery for ${sensor.slug}`);
+                    this.publishedDiscovery.add(discoveryKey);
+                }
+            });
+        }
+    }
+    /**
+     * Publish current diagnostic metrics
+     */
+    publishDiagnostics() {
+        const metrics = this.diagnostics.getMetrics();
+        // Update queue size from the actual queue
+        metrics.mqtt_queue_size = this.queue.getQueueSize();
+        const diagnosticTopic = `${this.haPrefix}/${this.nodeId}/diagnostics/state`;
+        this.queue.publish(diagnosticTopic, JSON.stringify(metrics), { retain: false, qos: 0 }, (error) => {
+            if (error) {
+                this.logger.error(`Failed to publish diagnostics: ${error.message}`);
+                this.diagnostics.incrementErrorCount();
+            }
+            else {
+                this.diagnostics.incrementMessageCount();
+            }
+        });
+    }
+    /**
+     * Get diagnostics tracker for external updates
+     */
+    getDiagnostics() {
+        return this.diagnostics;
     }
     publishDiscovery(devices, deviceStatus) {
         for (const device of devices) {
@@ -43,6 +192,13 @@ class MqttPublisher {
                     state_topic: `${this.haPrefix}/${this.nodeId}_${deviceId}/${slug}/state`,
                     value_template: '{{ value_json.value | default(value) | float(0) }}',
                     device: deviceConfig,
+                    availability: [
+                        {
+                            topic: this.availabilityTopic,
+                            payload_available: 'online',
+                            payload_not_available: 'offline',
+                        },
+                    ],
                 };
                 // Add unit of measurement if available
                 if (dp.unit && dp.unit !== '') {
@@ -92,7 +248,7 @@ class MqttPublisher {
                 const discoveryTopic = `${this.haPrefix}/${this.nodeId}_${deviceId}/${slug}/config`;
                 // Debug logging to diagnose the issue
                 this.logger.info(`Publishing discovery: nodeId="${this.nodeId}", deviceId="${deviceId}", sensorId="${sensorId}", topic="${discoveryTopic}"`);
-                this.mqttClient.publish(discoveryTopic, JSON.stringify(sensorConfig), { retain: true }, (error) => {
+                this.queue.publish(discoveryTopic, JSON.stringify(sensorConfig), { retain: true }, (error) => {
                     if (error) {
                         this.logger.error(`Failed to publish discovery for ${sensorId}:`, error);
                     }
@@ -127,7 +283,7 @@ class MqttPublisher {
                 }
                 this.logger.debug(`Publishing sensor: nodeId="${this.nodeId}", deviceId="${deviceId}", sensor="${slug}", topic="${sensorTopic}"`);
                 this.logger.info(`Publishing individual sensor state: ${sensorTopic}`);
-                this.mqttClient.publish(sensorTopic, JSON.stringify(sensorPayload), { retain: false }, (error) => {
+                this.queue.publish(sensorTopic, JSON.stringify(sensorPayload), { retain: false }, (error) => {
                     if (error) {
                         this.logger.error(`Failed to publish sensor ${slug} for ${deviceId}:`, error);
                     }

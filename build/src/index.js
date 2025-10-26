@@ -32,24 +32,28 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const getProperties_js_1 = require("./getProperties.js");
 const winetHandler_js_1 = require("./winetHandler.js");
 const homeassistant_js_1 = require("./homeassistant.js");
+const metrics_js_1 = require("./metrics.js");
 const winston = __importStar(require("winston"));
 const fs = __importStar(require("fs"));
 const util = __importStar(require("util"));
 const analytics_js_1 = require("./analytics.js");
 const sslConfig_js_1 = require("./sslConfig.js");
-const dotenv = require('dotenv');
-console.log('🚀 WINET2 Application Starting - Multi-inverter support enabled');
+const dotenv_1 = __importDefault(require("dotenv"));
+console.log('WINET2 Application Starting - Multi-inverter support enabled');
 // Global error handlers to prevent application crashes
 process.on('uncaughtException', (error) => {
-    console.error('❌ UNCAUGHT EXCEPTION - This should not crash the application:', error);
+    console.error('UNCAUGHT EXCEPTION - This should not crash the application:', error);
     // Log but don't exit - let the application continue
 });
 process.on('unhandledRejection', (reason) => {
-    console.error('❌ UNHANDLED PROMISE REJECTION - This should not crash the application:', reason);
+    console.error('UNHANDLED PROMISE REJECTION - This should not crash the application:', reason);
     // Log but don't exit - let the application continue
 });
 const logger = winston.createLogger({
@@ -65,6 +69,12 @@ const logger = winston.createLogger({
 });
 // Initialize SSL configuration and display settings
 new sslConfig_js_1.SSLConfig(logger); // Initialize for side effects
+// Initialize metrics collector (disabled by default)
+const metricsEnabled = process.env.METRICS_ENABLED === 'true' ||
+    process.env.ENABLE_METRICS === 'true';
+const metricsPort = parseInt(process.env.METRICS_PORT || '9090');
+const metrics = (0, metrics_js_1.getMetrics)({ enabled: metricsEnabled, port: metricsPort });
+metrics.initialize(logger);
 let options = {
     winet_host: '',
     winet_hosts: [],
@@ -85,7 +95,7 @@ if (fs.existsSync('/data/options.json')) {
     options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
 }
 else {
-    dotenv.config();
+    dotenv_1.default.config();
     // Helper function to trim and validate environment variables
     const getEnvVar = (key, defaultVal = '') => {
         const val = process.env[key]?.trim();
@@ -137,17 +147,79 @@ else {
         ]),
     });
 }
-if ((!options.winet_hosts || options.winet_hosts.length === 0) &&
-    !options.winet_host) {
-    throw new Error('No host provided');
+// Configuration validation with detailed error messages
+function validateConfiguration(opts) {
+    const errors = [];
+    const warnings = [];
+    // Validate required fields
+    if (!opts.mqtt_url) {
+        errors.push('MQTT_URL is required but not provided.\n' +
+            '  Please set MQTT_URL environment variable or add it to /data/options.json.\n' +
+            '  Example: MQTT_URL=mqtt://localhost:1883');
+    }
+    if ((!opts.winet_hosts || opts.winet_hosts.length === 0) &&
+        !opts.winet_host) {
+        errors.push('At least one WINET_HOST or WINET_HOSTS is required.\n' +
+            '  Please set WINET_HOST or WINET_HOSTS environment variable.\n' +
+            '  Examples:\n' +
+            '    WINET_HOST=192.168.1.100\n' +
+            '    WINET_HOSTS=192.168.1.100,192.168.1.101');
+    }
+    // Validate optional but important fields
+    if (opts.ssl && opts.mqtt_url && opts.mqtt_url.startsWith('mqtt://')) {
+        warnings.push('SSL enabled but MQTT uses unencrypted connection.\n' +
+            '  Consider using mqtts:// for encrypted MQTT communication.');
+    }
+    // Validate poll interval
+    const pollInterval = parseInt(opts.poll_interval);
+    if (isNaN(pollInterval)) {
+        errors.push(`Invalid POLL_INTERVAL value: ${opts.poll_interval}\n` +
+            '  Must be a number in seconds. Example: POLL_INTERVAL=10');
+    }
+    else if (pollInterval < 5) {
+        warnings.push(`Poll interval ${pollInterval}s is very low and may cause network congestion.\n` +
+            '  Recommended minimum: 5 seconds. Recommended value: 10-30 seconds.');
+    }
+    else if (pollInterval > 300) {
+        warnings.push(`Poll interval ${pollInterval}s is very high (>5 minutes).\n` +
+            '  Data updates will be infrequent.');
+    }
+    // Validate modbus configuration
+    if (opts.modbus_ips && opts.modbus_ips.length > 0) {
+        const hostCount = opts.winet_hosts && opts.winet_hosts.length > 0
+            ? opts.winet_hosts.length
+            : 1;
+        if (opts.modbus_ips.length !== hostCount) {
+            warnings.push(`MODBUS_IPS count (${opts.modbus_ips.length}) doesn't match inverter count (${hostCount}).\n` +
+                '  Some inverters may not have Modbus data. Use empty values (e.g., "192.168.1.10,,192.168.1.12") to skip specific inverters.');
+        }
+    }
+    // Validate inverter names match count
+    if (opts.winet_names && opts.winet_names.length > 0) {
+        const hostCount = opts.winet_hosts && opts.winet_hosts.length > 0
+            ? opts.winet_hosts.length
+            : 1;
+        if (opts.winet_names.length !== hostCount) {
+            warnings.push(`WINET_NAMES count (${opts.winet_names.length}) doesn't match inverter count (${hostCount}).\n` +
+                '  Some inverters may use default names (inverter1, inverter2, etc.).');
+        }
+    }
+    // Throw on errors
+    if (errors.length > 0) {
+        throw new Error(`Configuration validation failed:\n\n${errors.join('\n\n')}`);
+    }
+    // Log warnings
+    if (warnings.length > 0) {
+        console.warn(`\nConfiguration warnings:\n${warnings.join('\n\n')}\n`);
+    }
 }
-if (!options.mqtt_url) {
-    throw new Error('No mqtt provided');
-}
+validateConfiguration(options);
 const lang = 'en_US';
 const frequency = parseInt(options.poll_interval) || 10;
 // PERFORMANCE FIX #2: Track timers for cleanup to prevent memory leaks
 const activeTimers = [];
+// Track MQTT publishers for availability on shutdown
+const mqttPublishers = [];
 // Build list of hosts (support single WINET_HOST or comma-separated WINET_HOSTS/WINET_HOST)
 const hosts = options.winet_hosts && options.winet_hosts.length > 0
     ? options.winet_hosts
@@ -180,22 +252,32 @@ hosts.forEach((hostRaw, index) => {
         username: options.mqtt_user,
         password: options.mqtt_pass,
     });
-    // Add MQTT connection event handlers
-    mqttClient.on('connect', () => {
-        log.info(`[${inverterId}] Connected to MQTT broker at ${options.mqtt_url}`);
-    });
-    mqttClient.on('error', (error) => {
-        log.error(`[${inverterId}] MQTT connection error:`, error.message);
-    });
-    mqttClient.on('offline', () => {
-        log.warn(`[${inverterId}] MQTT client went offline`);
-    });
-    mqttClient.on('reconnect', () => {
-        log.info(`[${inverterId}] MQTT client reconnecting...`);
-    });
     // Initialize components with optimized parameters
     const mqttPublisher = new homeassistant_js_1.MqttPublisher(log, mqttClient, haPrefix, '', // Empty devicePrefix - using device serial numbers as identifiers
     inverterId);
+    // Track for cleanup
+    mqttPublishers.push(mqttPublisher);
+    // Add MQTT connection event handlers (after mqttPublisher is created)
+    mqttClient.on('connect', () => {
+        log.info(`[${inverterId}] Connected to MQTT broker at ${options.mqtt_url}`);
+        // Publish availability status
+        mqttPublisher.publishAvailable();
+        // Update diagnostics
+        mqttPublisher.getDiagnostics().setConnectionState('online');
+    });
+    mqttClient.on('error', (error) => {
+        log.error(`[${inverterId}] MQTT connection error:`, error.message);
+        mqttPublisher.getDiagnostics().incrementErrorCount();
+        mqttPublisher.getDiagnostics().setConnectionState('error');
+    });
+    mqttClient.on('offline', () => {
+        log.warn(`[${inverterId}] MQTT client went offline`);
+        mqttPublisher.getDiagnostics().setConnectionState('offline');
+    });
+    mqttClient.on('reconnect', () => {
+        log.info(`[${inverterId}] MQTT client reconnecting...`);
+        mqttPublisher.getDiagnostics().setConnectionState('connecting');
+    });
     // Get Modbus IP for this inverter (if configured)
     const modbusIp = options.modbus_ips?.[index];
     if (modbusIp) {
@@ -213,25 +295,44 @@ hosts.forEach((hostRaw, index) => {
         log.info(`[${inverterId}] Cleared sensor cache - will reconfigure all sensors on next update`);
     }, 3600000); // Use milliseconds directly (1 hour = 3600000ms)
     activeTimers.push(cacheResetTimer);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // Publish diagnostic metrics every 30 seconds
+    const diagnosticsTimer = setInterval(() => {
+        mqttPublisher.publishDiagnostics();
+    }, 30000); // 30 seconds
+    activeTimers.push(diagnosticsTimer);
+    // Track if diagnostic discovery has been published
+    let diagnosticDiscoveryPublished = false;
     winet.setCallback((devices, deviceStatus) => {
         log.info(`[${inverterId}] Received device update for ${devices.length} devices`);
+        // Publish diagnostic discovery once (use first device for identification)
+        if (!diagnosticDiscoveryPublished && devices.length > 0) {
+            const firstDevice = devices[0];
+            mqttPublisher.publishDiagnosticDiscovery(firstDevice.dev_sn, firstDevice.dev_model);
+            diagnosticDiscoveryPublished = true;
+            log.info(`[${inverterId}] Published diagnostic sensor discovery for ${firstDevice.dev_model} ${firstDevice.dev_sn}`);
+        }
         // First publish discovery configurations for new devices/sensors
         mqttPublisher.publishDiscovery(devices, deviceStatus);
         // Then publish updated status data
         mqttPublisher.publishStatus(devices, deviceStatus);
+        // Update diagnostics - data received successfully
+        mqttPublisher.getDiagnostics().updateLastUpdate();
         log.info(`[${inverterId}] Published updates to MQTT for ${devices.length} devices`);
     });
     const init = () => {
+        mqttPublisher.getDiagnostics().setWebSocketState('connecting');
         (0, getProperties_js_1.getProperties)(log, host, lang, options.ssl)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .then((result) => {
             log.info(`[${inverterId}] Fetched i18n properties.`);
             winet.setProperties(result.properties);
             winet.connect(result.forceSsl);
+            mqttPublisher.getDiagnostics().setWebSocketState('connected');
         })
             .catch((err) => {
             log.error(`[${inverterId}] Failed to fetch l18n properties required to start. Will retry.`, err);
+            mqttPublisher.getDiagnostics().setWebSocketState('disconnected');
+            mqttPublisher.getDiagnostics().incrementErrorCount();
             // Retry after a longer backoff to avoid spamming the device/network
             setTimeout(init, Math.max(frequency * 1000 * 6, 30000));
         });
@@ -252,13 +353,21 @@ hosts.forEach((hostRaw, index) => {
 });
 // PERFORMANCE FIX #2: Graceful shutdown to prevent memory leaks
 const cleanup = () => {
-    logger.info('🛑 Graceful shutdown initiated - cleaning up timers...');
+    logger.info('Graceful shutdown initiated - cleaning up resources...');
+    // Publish availability offline for all inverters
+    mqttPublishers.forEach((publisher, index) => {
+        publisher.publishUnavailable();
+        logger.info(`Published offline status for publisher ${index + 1}`);
+    });
+    // Clear all timers
     activeTimers.forEach((timer, index) => {
         clearInterval(timer);
         logger.info(`Cleared timer ${index + 1}/${activeTimers.length}`);
     });
-    activeTimers.length = 0; // Clear the array
-    logger.info('✅ Cleanup complete');
+    activeTimers.length = 0;
+    // Stop metrics server
+    metrics.stop();
+    logger.info('Cleanup complete');
     // process.exit(0); // Disabled for linting - let process terminate naturally
 };
 // Handle various shutdown signals

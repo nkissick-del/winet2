@@ -14,7 +14,9 @@ import slugify from 'slugify';
 import {QueryStages, DeviceTypeStages, NumericUnits} from './types/Constants';
 import {ModbusReader} from './modbusReader';
 
-type DeviceRecord = z.infer<typeof DeviceSchema> & {dev_model_base?: string};
+export type DeviceRecord = z.infer<typeof DeviceSchema> & {
+  dev_model_base?: string;
+};
 
 export class winetHandler {
   private winetUser: string;
@@ -31,6 +33,8 @@ export class winetHandler {
   private winetVersion?: number;
   private scanInterval?: NodeJS.Timeout;
   private watchdogInterval?: NodeJS.Timeout;
+  private requestTimeout?: NodeJS.Timeout;
+  private readonly REQUEST_TIMEOUT_MS = 30000; // 30 seconds
   private logger: winston.Logger;
   private host: string;
   private ssl = false;
@@ -164,6 +168,12 @@ export class winetHandler {
       clearInterval(this.scanInterval);
     }
 
+    // Clear any pending request timeout
+    if (this.requestTimeout) {
+      clearTimeout(this.requestTimeout);
+      this.requestTimeout = undefined;
+    }
+
     this.clearWatchdog();
 
     setTimeout(
@@ -181,6 +191,22 @@ export class winetHandler {
     const packet = Object.assign({lang: this.lang, token: this.token}, data);
 
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      // Clear any existing timeout
+      if (this.requestTimeout) {
+        clearTimeout(this.requestTimeout);
+      }
+
+      // Set timeout for this request
+      this.requestTimeout = setTimeout(() => {
+        this.logger.error(
+          `Request timeout after ${this.REQUEST_TIMEOUT_MS}ms for service: ${
+            (data as {service?: string}).service || 'unknown'
+          }`,
+        );
+        this.logger.warn('Forcing reconnection due to request timeout');
+        this.reconnect();
+      }, this.REQUEST_TIMEOUT_MS);
+
       this.ws.send(JSON.stringify(packet));
     }
   }
@@ -202,6 +228,12 @@ export class winetHandler {
 
   private onMessage(data: WebSocket.RawData): void {
     this.watchdogLastData = Date.now();
+
+    // Clear request timeout when receiving any message
+    if (this.requestTimeout) {
+      clearTimeout(this.requestTimeout);
+      this.requestTimeout = undefined;
+    }
 
     try {
       const message = JSON.parse(data.toString());
