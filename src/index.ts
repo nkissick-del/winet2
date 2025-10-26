@@ -310,26 +310,6 @@ hosts.forEach((hostRaw: string, index: number) => {
     password: options.mqtt_pass,
   });
 
-  // Add MQTT connection event handlers
-  mqttClient.on('connect', () => {
-    log.info(`[${inverterId}] Connected to MQTT broker at ${options.mqtt_url}`);
-
-    // Publish availability status
-    mqttPublisher.publishAvailable();
-  });
-
-  mqttClient.on('error', (error: Error) => {
-    log.error(`[${inverterId}] MQTT connection error:`, error.message);
-  });
-
-  mqttClient.on('offline', () => {
-    log.warn(`[${inverterId}] MQTT client went offline`);
-  });
-
-  mqttClient.on('reconnect', () => {
-    log.info(`[${inverterId}] MQTT client reconnecting...`);
-  });
-
   // Initialize components with optimized parameters
   const mqttPublisher = new MqttPublisher(
     log,
@@ -341,6 +321,33 @@ hosts.forEach((hostRaw: string, index: number) => {
 
   // Track for cleanup
   mqttPublishers.push(mqttPublisher);
+
+  // Add MQTT connection event handlers (after mqttPublisher is created)
+  mqttClient.on('connect', () => {
+    log.info(`[${inverterId}] Connected to MQTT broker at ${options.mqtt_url}`);
+
+    // Publish availability status
+    mqttPublisher.publishAvailable();
+
+    // Update diagnostics
+    mqttPublisher.getDiagnostics().setConnectionState('online');
+  });
+
+  mqttClient.on('error', (error: Error) => {
+    log.error(`[${inverterId}] MQTT connection error:`, error.message);
+    mqttPublisher.getDiagnostics().incrementErrorCount();
+    mqttPublisher.getDiagnostics().setConnectionState('error');
+  });
+
+  mqttClient.on('offline', () => {
+    log.warn(`[${inverterId}] MQTT client went offline`);
+    mqttPublisher.getDiagnostics().setConnectionState('offline');
+  });
+
+  mqttClient.on('reconnect', () => {
+    log.info(`[${inverterId}] MQTT client reconnecting...`);
+    mqttPublisher.getDiagnostics().setConnectionState('connecting');
+  });
 
   // Get Modbus IP for this inverter (if configured)
   const modbusIp = options.modbus_ips?.[index];
@@ -375,17 +382,43 @@ hosts.forEach((hostRaw: string, index: number) => {
 
   activeTimers.push(cacheResetTimer);
 
+  // Publish diagnostic metrics every 30 seconds
+  const diagnosticsTimer = setInterval(() => {
+    mqttPublisher.publishDiagnostics();
+  }, 30000); // 30 seconds
+
+  activeTimers.push(diagnosticsTimer);
+
+  // Track if diagnostic discovery has been published
+  let diagnosticDiscoveryPublished = false;
+
   winet.setCallback(
     (devices: DeviceRecord[], deviceStatus: DeviceStatusMap) => {
       log.info(
         `[${inverterId}] Received device update for ${devices.length} devices`,
       );
 
+      // Publish diagnostic discovery once (use first device for identification)
+      if (!diagnosticDiscoveryPublished && devices.length > 0) {
+        const firstDevice = devices[0];
+        mqttPublisher.publishDiagnosticDiscovery(
+          firstDevice.dev_sn,
+          firstDevice.dev_model,
+        );
+        diagnosticDiscoveryPublished = true;
+        log.info(
+          `[${inverterId}] Published diagnostic sensor discovery for ${firstDevice.dev_model} ${firstDevice.dev_sn}`,
+        );
+      }
+
       // First publish discovery configurations for new devices/sensors
       mqttPublisher.publishDiscovery(devices, deviceStatus);
 
       // Then publish updated status data
       mqttPublisher.publishStatus(devices, deviceStatus);
+
+      // Update diagnostics - data received successfully
+      mqttPublisher.getDiagnostics().updateLastUpdate();
 
       log.info(
         `[${inverterId}] Published updates to MQTT for ${devices.length} devices`,
@@ -394,18 +427,22 @@ hosts.forEach((hostRaw: string, index: number) => {
   );
 
   const init = () => {
+    mqttPublisher.getDiagnostics().setWebSocketState('connecting');
     getProperties(log, host, lang, options.ssl)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then((result: any) => {
         log.info(`[${inverterId}] Fetched i18n properties.`);
         winet.setProperties(result.properties);
         winet.connect(result.forceSsl);
+        mqttPublisher.getDiagnostics().setWebSocketState('connected');
       })
       .catch((err: Error) => {
         log.error(
           `[${inverterId}] Failed to fetch l18n properties required to start. Will retry.`,
           err,
         );
+        mqttPublisher.getDiagnostics().setWebSocketState('disconnected');
+        mqttPublisher.getDiagnostics().incrementErrorCount();
         // Retry after a longer backoff to avoid spamming the device/network
         setTimeout(init, Math.max(frequency * 1000 * 6, 30000));
       });
