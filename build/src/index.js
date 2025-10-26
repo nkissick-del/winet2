@@ -218,6 +218,8 @@ const lang = 'en_US';
 const frequency = parseInt(options.poll_interval) || 10;
 // PERFORMANCE FIX #2: Track timers for cleanup to prevent memory leaks
 const activeTimers = [];
+// Track MQTT publishers for availability on shutdown
+const mqttPublishers = [];
 // Build list of hosts (support single WINET_HOST or comma-separated WINET_HOSTS/WINET_HOST)
 const hosts = options.winet_hosts && options.winet_hosts.length > 0
     ? options.winet_hosts
@@ -253,6 +255,8 @@ hosts.forEach((hostRaw, index) => {
     // Add MQTT connection event handlers
     mqttClient.on('connect', () => {
         log.info(`[${inverterId}] Connected to MQTT broker at ${options.mqtt_url}`);
+        // Publish availability status
+        mqttPublisher.publishAvailable();
     });
     mqttClient.on('error', (error) => {
         log.error(`[${inverterId}] MQTT connection error:`, error.message);
@@ -266,6 +270,8 @@ hosts.forEach((hostRaw, index) => {
     // Initialize components with optimized parameters
     const mqttPublisher = new homeassistant_js_1.MqttPublisher(log, mqttClient, haPrefix, '', // Empty devicePrefix - using device serial numbers as identifiers
     inverterId);
+    // Track for cleanup
+    mqttPublishers.push(mqttPublisher);
     // Get Modbus IP for this inverter (if configured)
     const modbusIp = options.modbus_ips?.[index];
     if (modbusIp) {
@@ -322,6 +328,11 @@ hosts.forEach((hostRaw, index) => {
 // PERFORMANCE FIX #2: Graceful shutdown to prevent memory leaks
 const cleanup = () => {
     logger.info('Graceful shutdown initiated - cleaning up resources...');
+    // Publish availability offline for all inverters
+    mqttPublishers.forEach((publisher, index) => {
+        publisher.publishUnavailable();
+        logger.info(`Published offline status for publisher ${index + 1}`);
+    });
     // Clear all timers
     activeTimers.forEach((timer, index) => {
         clearInterval(timer);

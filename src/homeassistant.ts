@@ -2,21 +2,8 @@ import {z} from 'zod';
 import {DeviceSchema} from './types/MessageTypes';
 import {DeviceStatusMap, DeviceDataPoint} from './types/DeviceStatus';
 import * as winston from 'winston';
-
-interface MqttPublishOptions {
-  retain?: boolean;
-  qos?: number;
-  dup?: boolean;
-}
-
-interface MqttClient {
-  publish(
-    topic: string,
-    payload: string,
-    options: MqttPublishOptions,
-    callback: (error?: Error) => void,
-  ): void;
-}
+import {MqttClient} from 'mqtt';
+import {MqttQueue} from './mqttQueue';
 
 interface HaSensorConfig {
   unique_id: string;
@@ -30,9 +17,15 @@ interface HaSensorConfig {
     manufacturer: string;
     serial_number: string;
   };
+  availability?: Array<{
+    topic: string;
+    payload_available: string;
+    payload_not_available: string;
+  }>;
   unit_of_measurement?: string;
   device_class?: string;
   state_class?: string;
+  entity_category?: string;
 }
 
 export class MqttPublisher {
@@ -43,6 +36,8 @@ export class MqttPublisher {
   private nodeId: string; // Add nodeId to identify this inverter instance
   private publishedDiscovery = new Set<string>();
   private lastStatusPublish: {[key: string]: number} = {};
+  private availabilityTopic: string;
+  private queue: MqttQueue;
 
   constructor(
     logger: winston.Logger,
@@ -56,6 +51,46 @@ export class MqttPublisher {
     this.haPrefix = haPrefix;
     this.devicePrefix = devicePrefix;
     this.nodeId = nodeId;
+    this.availabilityTopic = `${haPrefix}/${nodeId}/availability`;
+    this.queue = new MqttQueue(logger, mqttClient);
+  }
+
+  /**
+   * Publish availability status (online)
+   * Call when connection is established
+   */
+  publishAvailable(): void {
+    this.queue.publish(
+      this.availabilityTopic,
+      'online',
+      {retain: true, qos: 1},
+      error => {
+        if (error) {
+          this.logger.error(`Failed to publish availability: ${error.message}`);
+        } else {
+          this.logger.info('Published availability: online');
+        }
+      },
+    );
+  }
+
+  /**
+   * Publish availability status (offline)
+   * Call before disconnecting
+   */
+  publishUnavailable(): void {
+    this.queue.publish(
+      this.availabilityTopic,
+      'offline',
+      {retain: true, qos: 1},
+      error => {
+        if (error) {
+          this.logger.error(
+            `Failed to publish unavailability: ${error.message}`,
+          );
+        }
+      },
+    );
   }
 
   publishDiscovery(
@@ -92,6 +127,13 @@ export class MqttPublisher {
           state_topic: `${this.haPrefix}/${this.nodeId}_${deviceId}/${slug}/state`,
           value_template: '{{ value_json.value | default(value) | float(0) }}',
           device: deviceConfig,
+          availability: [
+            {
+              topic: this.availabilityTopic,
+              payload_available: 'online',
+              payload_not_available: 'offline',
+            },
+          ],
         };
 
         // Add unit of measurement if available
@@ -148,7 +190,7 @@ export class MqttPublisher {
           `Publishing discovery: nodeId="${this.nodeId}", deviceId="${deviceId}", sensorId="${sensorId}", topic="${discoveryTopic}"`,
         );
 
-        this.mqttClient.publish(
+        this.queue.publish(
           discoveryTopic,
           JSON.stringify(sensorConfig),
           {retain: true},
@@ -206,7 +248,7 @@ export class MqttPublisher {
         );
         this.logger.info(`Publishing individual sensor state: ${sensorTopic}`);
 
-        this.mqttClient.publish(
+        this.queue.publish(
           sensorTopic,
           JSON.stringify(sensorPayload),
           {retain: false},

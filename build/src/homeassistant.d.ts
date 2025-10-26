@@ -2,14 +2,7 @@ import { z } from 'zod';
 import { DeviceSchema } from './types/MessageTypes';
 import { DeviceStatusMap } from './types/DeviceStatus';
 import * as winston from 'winston';
-interface MqttPublishOptions {
-    retain?: boolean;
-    qos?: number;
-    dup?: boolean;
-}
-interface MqttClient {
-    publish(topic: string, payload: string, options: MqttPublishOptions, callback: (error?: Error) => void): void;
-}
+import { MqttClient } from 'mqtt';
 export declare class MqttPublisher {
     private logger;
     private mqttClient;
@@ -18,10 +11,21 @@ export declare class MqttPublisher {
     private nodeId;
     private publishedDiscovery;
     private lastStatusPublish;
+    private availabilityTopic;
+    private queue;
     constructor(logger: winston.Logger, mqttClient: MqttClient, haPrefix: string, devicePrefix: string, nodeId: string);
+    /**
+     * Publish availability status (online)
+     * Call when connection is established
+     */
+    publishAvailable(): void;
+    /**
+     * Publish availability status (offline)
+     * Call before disconnecting
+     */
+    publishUnavailable(): void;
     publishDiscovery(devices: z.infer<typeof DeviceSchema>[], deviceStatus: DeviceStatusMap): void;
     publishStatus(devices: z.infer<typeof DeviceSchema>[], deviceStatus: DeviceStatusMap): void;
     clearDiscoveryCache(): void;
     forceDiscoveryPublish(): void;
 }
-export {};
