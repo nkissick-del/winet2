@@ -9,7 +9,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/nkissick-del/winet2/issues</Support>
   <Project>https://github.com/nkissick-del/winet2</Project>
-  <Overview>Bridge Sungrow Winet/Winet-S/Winet-S2 gateways to Home Assistant using MQTT Discovery. Version 2.0.0 with Node.js 20 LTS, TypeScript 5.4.5, and Zod v4. Features: Multi-inverter support, MQTT availability tracking, message queue for reliable delivery, 7 diagnostic sensors (connection state, uptime, message/error counts, queue size), persistent property caching for faster startup, SSL/TLS security, Prometheus metrics, and automatic sensor discovery with friendly naming. 24 comprehensive tests. Published to GitHub Container Registry for easy deployment.</Overview>
+  <Overview>Bridge Sungrow Winet/Winet-S/Winet-S2 gateways to Home Assistant using MQTT Discovery. Version 2.0.0 with Node.js 20 LTS, TypeScript 5.4.5, and Zod v4. Features: Multi-inverter support, MQTT availability tracking, message queue for reliable delivery, 7 diagnostic sensors (connection state, uptime, message/error counts, queue size), persistent property caching for faster startup, SSL/TLS security, Prometheus metrics, and automatic sensor discovery with friendly naming. 24 comprehensive tests. For local testing - ensure image is built locally first.</Overview>
   <Category>HomeAutomation:</Category>
   <WebUI />
   <TemplateURL>https://raw.githubusercontent.com/nkissick-del/winet2/main/winet2-unraid-template.xml</TemplateURL>
