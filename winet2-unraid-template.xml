@@ -9,7 +9,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/nkissick-del/winet2/issues</Support>
   <Project>https://github.com/nkissick-del/winet2</Project>
-  <Overview>Bridge Sungrow Winet/Winet-S/Winet-S2 gateways to Home Assistant using MQTT Discovery. Version 2.0.0 with Node.js 20 LTS, TypeScript 5.9.3, and Zod v4. Features multi-inverter support, SSL/TLS security, and automatic sensor discovery with friendly naming ("Daily Yield (inverter_1)" format). For local testing - ensure image is built locally first.</Overview>
+  <Overview>Bridge Sungrow Winet/Winet-S/Winet-S2 gateways to Home Assistant using MQTT Discovery. Version 2.0.0 with Node.js 20 LTS, TypeScript 5.4.5, and Zod v4. Features: Multi-inverter support, MQTT availability tracking, message queue for reliable delivery, 7 diagnostic sensors (connection state, uptime, message/error counts, queue size), persistent property caching for faster startup, SSL/TLS security, Prometheus metrics, and automatic sensor discovery with friendly naming. 24 comprehensive tests. For local testing - ensure image is built locally first.</Overview>
   <Category>HomeAutomation:</Category>
   <WebUI />
   <TemplateURL>https://raw.githubusercontent.com/nkissick-del/winet2/main/winet2-unraid-template.xml</TemplateURL>
@@ -21,6 +21,8 @@
   <DonateText />
   <DonateLink />
   <Requires>Home Assistant with MQTT broker enabled</Requires>
+  <Config Name="Cache Directory" Target="/data/cache" Default="/mnt/user/appdata/winet2/cache" Mode="rw" Description="Persistent cache directory for faster startup" Type="Path" Display="advanced" Required="false" Mask="false" />
+  <Config Name="Metrics Port" Target="9090" Default="9090" Mode="tcp" Description="Prometheus metrics endpoint (http://host:9090/metrics)" Type="Port" Display="advanced" Required="false" Mask="false" />
   <Config Name="WINET_HOST" Target="WINET_HOST" Default="" Mode="" Description="Single inverter IP address (leave blank if using WINET_HOSTS)" Type="Variable" Display="advanced" Required="false" Mask="false" />
   <Config Name="WINET_HOSTS" Target="WINET_HOSTS" Default="192.168.1.114,192.168.1.12" Mode="" Description="Comma-separated list of inverter IP addresses" Type="Variable" Display="always" Required="false" Mask="false" />
   <Config Name="WINET_NAMES" Target="WINET_NAMES" Default="inverter_1,inverter_2" Mode="" Description="Comma-separated friendly names (MQTT-safe)" Type="Variable" Display="advanced" Required="false" Mask="false" />
@@ -38,5 +40,10 @@
   <Config Name="HA_PREFIX" Target="HA_PREFIX" Default="homeassistant/sensor" Mode="" Description="Home Assistant MQTT discovery prefix" Type="Variable" Display="advanced" Required="false" Mask="false" />
   <Config Name="ANALYTICS" Target="ANALYTICS" Default="false" Mode="" Description="Enable anonymous analytics (true/false)" Type="Variable" Display="advanced" Required="false" Mask="false" />
   <Config Name="SINGLE_PHASE_SYSTEM" Target="SINGLE_PHASE_SYSTEM" Default="false" Mode="" Description="Hide 3-phase sensors (true/false)" Type="Variable" Display="advanced" Required="false" Mask="false" />
+  <Config Name="PROPERTIES_CACHE_ENABLED" Target="PROPERTIES_CACHE_ENABLED" Default="true" Mode="" Description="Enable property caching for faster startup (true/false)" Type="Variable" Display="advanced" Required="false" Mask="false" />
+  <Config Name="PROPERTIES_CACHE_DIR" Target="PROPERTIES_CACHE_DIR" Default="/data/cache" Mode="" Description="Directory for cached properties" Type="Variable" Display="advanced" Required="false" Mask="false" />
+  <Config Name="PROPERTIES_CACHE_TTL" Target="PROPERTIES_CACHE_TTL" Default="604800000" Mode="" Description="Cache TTL in milliseconds (default: 7 days)" Type="Variable" Display="advanced" Required="false" Mask="false" />
+  <Config Name="METRICS_ENABLED" Target="METRICS_ENABLED" Default="false" Mode="" Description="Enable Prometheus metrics endpoint (true/false)" Type="Variable" Display="advanced" Required="false" Mask="false" />
+  <Config Name="METRICS_PORT" Target="METRICS_PORT" Default="9090" Mode="" Description="Port for Prometheus metrics endpoint" Type="Variable" Display="advanced" Required="false" Mask="false" />
   <Config Name="TZ" Target="TZ" Default="Australia/Sydney" Mode="" Description="Timezone for container" Type="Variable" Display="advanced" Required="false" Mask="false" />
 </Container>
