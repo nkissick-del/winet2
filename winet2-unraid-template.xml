@@ -1,8 +1,8 @@
 <?xml version='1.0' encoding='utf-8'?>
 <Container version="2">
   <Name>winet2</Name>
-  <Repository>winet2:latest</Repository>
-  <Registry />
+  <Repository>ghcr.io/nkissick-del/winet2:latest</Repository>
+  <Registry>https://ghcr.io</Registry>
   <Network>host</Network>
   <MyIP />
   <Shell>sh</Shell>
